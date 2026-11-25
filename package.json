@@ -1,0 +1,29 @@
+{
+  "name": "wemakesucess",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "dev:full": "vite build && npx wrangler@4 pages dev dist",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p functions",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^31.0.1",
+    "typescript": "~5.8",
+    "vite": "^6.4.6",
+    "vitest": "^3.2.7"
+  }
+}
