@@ -1,5 +1,6 @@
 import { ACCENTS, BLANK, FONTS, TEMPLATES, type ListKey, type Resume } from '../shared/resume';
 import { Field } from './Field';
+import { PhotoField } from './PhotoField';
 import { Thumb } from './Thumb';
 
 export const STEPS = [
@@ -9,7 +10,8 @@ export const STEPS = [
   { id: 'experience', label: 'Experience' },
   { id: 'education', label: 'Education' },
   { id: 'skills', label: 'Skills' },
-  { id: 'extras', label: 'Projects & more' },
+  { id: 'extras', label: 'Projects' },
+  { id: 'more', label: 'More sections' },
 ] as const;
 export type StepId = (typeof STEPS)[number]['id'];
 
@@ -141,6 +143,7 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
           {f('contact.linkedin', 'LinkedIn')}
           {f('contact.website', 'Portfolio / GitHub', { span: true })}
         </div>
+        <PhotoField photo={r.photo} onChange={(v) => setPath('photo', v)} />
       </>
     );
   } else if (step === 'summary') {
@@ -206,6 +209,40 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
         {f('languages', 'Languages', { placeholder: 'English, Hindi' })}
       </>
     );
+  } else if (step === 'more') {
+    body = (
+      <>
+        <h2>More sections</h2>
+        <p className="hint">Optional. Empty sections are left out. Show, hide or reorder them under Layout.</p>
+        {f('certifications', 'Certifications (one per line)', { area: true, rows: 3 })}
+        {f('awards', 'Awards and achievements (one per line)', { area: true, rows: 3, placeholder: 'Employee of the Quarter, Q2 2024' })}
+        <h3 className="sub">Volunteering</h3>
+        {r.volunteering.map((e, i) => (
+          <div className="entry" key={i}>
+            {entryHead('volunteering', i, e.role && e.company ? `${e.role} · ${e.company}` : e.role)}
+            <div className="grid2">
+              {f(`volunteering.${i}.role`, 'Role')}
+              {f(`volunteering.${i}.company`, 'Organisation')}
+              {f(`volunteering.${i}.start`, 'Start')}
+              {f(`volunteering.${i}.end`, 'End')}
+            </div>
+            {f(`volunteering.${i}.bullets`, 'What you did (one per line)', { area: true, rows: 3 })}
+          </div>
+        ))}
+        {addBtn('volunteering', 'Add volunteering')}
+        {f('interests', 'Interests (comma separated)', { placeholder: 'Chess, Marathon running' })}
+        <h3 className="sub">Custom sections</h3>
+        <p className="hint">Use a clear, standard title such as “Publications” or “Patents” so ATS recognise it.</p>
+        {r.custom.map((c, i) => (
+          <div className="entry" key={i}>
+            {entryHead('custom', i, c.title)}
+            {f(`custom.${i}.title`, 'Section title')}
+            {f(`custom.${i}.body`, 'Items (one per line)', { area: true, rows: 3 })}
+          </div>
+        ))}
+        {r.custom.length < 5 && addBtn('custom', 'Add a custom section')}
+      </>
+    );
   } else {
     body = (
       <>
@@ -221,8 +258,6 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
           </div>
         ))}
         {addBtn('projects', 'Add a project')}
-        <h2 style={{ marginTop: 6 }}>Certifications</h2>
-        {f('certifications', 'One per line', { area: true, rows: 3 })}
       </>
     );
   }

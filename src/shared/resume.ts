@@ -35,6 +35,64 @@ export interface Project {
   bullets: string;
 }
 
+export interface CustomSection {
+  title: string;
+  /** One line per bullet. */
+  body: string;
+}
+
+export type SectionKey =
+  | 'summary'
+  | 'experience'
+  | 'education'
+  | 'skills'
+  | 'projects'
+  | 'certifications'
+  | 'awards'
+  | 'volunteering'
+  | 'languages'
+  | 'interests'
+  | 'custom';
+
+export const SECTIONS: { key: SectionKey; label: string }[] = [
+  { key: 'summary', label: 'Summary' },
+  { key: 'experience', label: 'Experience' },
+  { key: 'education', label: 'Education' },
+  { key: 'skills', label: 'Skills' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'certifications', label: 'Certifications' },
+  { key: 'awards', label: 'Awards' },
+  { key: 'volunteering', label: 'Volunteering' },
+  { key: 'languages', label: 'Languages' },
+  { key: 'interests', label: 'Interests' },
+  { key: 'custom', label: 'Custom sections' },
+];
+
+export interface Layout {
+  /** Section order; sections not listed follow in default order. */
+  order: SectionKey[];
+  hidden: SectionKey[];
+  /** Page margin in millimetres. */
+  margin: number;
+  /** Multiplier for vertical space between sections and items. */
+  spacing: number;
+  /** Multiplier for all font sizes. */
+  fontScale: number;
+}
+
+export const DEFAULT_LAYOUT: Layout = {
+  order: SECTIONS.map((x) => x.key),
+  hidden: [],
+  margin: 14,
+  spacing: 1,
+  fontScale: 1,
+};
+export const LIMITS = {
+  margin: [8, 22] as const,
+  spacing: [0.6, 1.4] as const,
+  fontScale: [0.85, 1.15] as const,
+};
+
 export interface Resume {
   template: TemplateId;
   accent: string;
@@ -50,9 +108,18 @@ export interface Resume {
   certifications: string;
   /** Comma separated. */
   languages: string;
+  /** One per line. */
+  awards: string;
+  volunteering: Experience[];
+  /** Comma separated. */
+  interests: string;
+  custom: CustomSection[];
+  /** Optional photo as a small JPEG data URL, or ''. */
+  photo: string;
+  layout: Layout;
 }
 
-export type ListKey = 'experience' | 'education' | 'projects';
+export type ListKey = 'experience' | 'education' | 'projects' | 'volunteering' | 'custom';
 
 export const TEMPLATES: { id: TemplateId; name: string; desc: string; font: FontId; tags: string[] }[] = [
   { id: 'modern', name: 'Modern', desc: 'Colour headings, clean sans', font: 'sans', tags: ['Modern', 'Simple', 'Graduate'] },
@@ -63,7 +130,7 @@ export const TEMPLATES: { id: TemplateId; name: string; desc: string; font: Font
 
 export const TEMPLATE_FILTERS = ['All', 'Modern', 'Simple', 'Professional', 'Traditional', 'One-page', 'Student', 'Graduate', 'Senior'];
 
-export const ACCENTS = ['#1f3a68', '#0f6b6b', '#7a2338', '#2f2f2f', '#3b3f99', '#8a4b0f'];
+export const ACCENTS = ['#1f3a68', '#0f6b6b', '#7a2338', '#2f2f2f', '#3b3f99', '#8a4b0f', '#1d6b3a', '#5b2a86', '#a1312b', '#0b5e8a'];
 
 export const FONTS: { id: FontId; name: string }[] = [
   { id: 'sans', name: 'Source Sans' },
@@ -71,10 +138,12 @@ export const FONTS: { id: FontId; name: string }[] = [
   { id: 'plex', name: 'IBM Plex' },
 ];
 
-export const BLANK: { experience: Experience; education: Education; projects: Project } = {
+export const BLANK: { experience: Experience; education: Education; projects: Project; volunteering: Experience; custom: CustomSection } = {
   experience: { role: '', company: '', location: '', start: '', end: '', bullets: '' },
   education: { degree: '', school: '', location: '', start: '', end: '', details: '' },
   projects: { name: '', link: '', bullets: '' },
+  volunteering: { role: '', company: '', location: '', start: '', end: '', bullets: '' },
+  custom: { title: '', body: '' },
 };
 
 export const SAMPLE: Resume = {
@@ -133,6 +202,12 @@ export const SAMPLE: Resume = {
   ],
   certifications: 'AWS Certified Solutions Architect – Associate (2023)',
   languages: 'English, Malayalam, Hindi, Kannada',
+  awards: '',
+  volunteering: [],
+  interests: '',
+  custom: [],
+  photo: '',
+  layout: DEFAULT_LAYOUT,
 };
 
 export const cloneResume = (r: Resume): Resume => JSON.parse(JSON.stringify(r));
@@ -174,5 +249,33 @@ export function normalizeResume(input: unknown): Resume {
     projects: list(o.projects, BLANK.projects),
     certifications: str(o.certifications),
     languages: str(o.languages, 500),
+    awards: str(o.awards),
+    volunteering: list(o.volunteering, BLANK.volunteering, 10),
+    interests: str(o.interests, 500),
+    custom: list(o.custom, BLANK.custom, 5),
+    photo: typeof o.photo === 'string' && PHOTO.test(o.photo) && o.photo.length <= MAX_PHOTO ? o.photo : '',
+    layout: normalizeLayout(o.layout),
+  };
+}
+
+const PHOTO = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+/** About 150 KB of base64; the editor downscales photos well below this. */
+export const MAX_PHOTO = 200_000;
+
+const clamp = (v: unknown, [lo, hi]: readonly [number, number], d: number) =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d;
+
+export function normalizeLayout(input: unknown): Layout {
+  const l = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  const keys = SECTIONS.map((x) => x.key);
+  const valid = (v: unknown): SectionKey[] =>
+    Array.isArray(v) ? [...new Set(v.filter((k): k is SectionKey => keys.includes(k as SectionKey)))] : [];
+  const order = valid(l.order);
+  return {
+    order: [...order, ...keys.filter((k) => !order.includes(k))],
+    hidden: valid(l.hidden),
+    margin: clamp(l.margin, LIMITS.margin, DEFAULT_LAYOUT.margin),
+    spacing: clamp(l.spacing, LIMITS.spacing, DEFAULT_LAYOUT.spacing),
+    fontScale: clamp(l.fontScale, LIMITS.fontScale, DEFAULT_LAYOUT.fontScale),
   };
 }

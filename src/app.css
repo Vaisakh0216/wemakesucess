@@ -139,3 +139,45 @@ button,input,textarea,select{font:inherit;color:inherit}
 .fine{margin:-4px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .fine a,.legal a{color:var(--muted)}
 .legal{display:flex;gap:12px;flex-wrap:wrap;margin-top:auto;padding-top:16px;border-top:1px solid var(--line);font-size:12px}
+
+/* Design toolbar above the preview: Layout, Fonts, Themes menus. */
+.toolbar{position:relative;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px 20px}
+.toolbar .spacer{flex:1}
+.tb-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer}
+.tb-btn:hover{border-color:var(--muted)}
+.tb-btn[aria-expanded="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.tb-btn.accent{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pages{font-size:12px;font-weight:600;color:var(--muted);padding:0 4px;font-variant-numeric:tabular-nums}
+.pages.multi{color:var(--warn)}
+.pop{position:absolute;top:calc(100% - 4px);left:20px;z-index:30;width:min(340px,calc(100vw - 32px));max-height:min(70vh,560px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.pop.wide{width:min(480px,calc(100vw - 32px))}
+.pop h4{margin:4px 0 0;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.pop-hint{margin:0;font-size:12px;color:var(--muted)}
+.sec-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sec-list li{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:4px 6px 4px 10px}
+.sec-list li.off label{color:var(--muted);text-decoration:line-through}
+.sec-list label{flex:1;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer}
+.sec-list .icon-btn{width:24px;height:24px;font-size:12px}
+.slider{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.slider > span:first-child{display:flex;justify-content:space-between;font-weight:600}
+.slider b{font-variant-numeric:tabular-nums;color:var(--accent)}
+.slider input{width:100%;accent-color:var(--accent)}
+.slider .ends{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+.font-list{display:grid;gap:6px}
+.font-opt{border:1.5px solid var(--line);background:#fff;color:#1b1b1b;border-radius:9px;padding:8px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column}
+.font-opt[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.font-opt b{font-size:15px}.font-opt span{font-size:12px;color:#555}
+.pop .tpls{grid-template-columns:repeat(3,1fr)}
+
+/* ATS issue pins on the page */
+.pin{position:absolute;left:-14px;width:26px;height:26px;margin-top:-2px;border-radius:50%;border:2px solid #fff;background:var(--warn);color:#fff;font:700 14px var(--f-ui);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:2}
+.pin-tip{display:none;position:absolute;left:32px;top:-4px;width:260px;background:#141b2b;color:#fff;font:500 12.5px/1.4 var(--f-ui);text-align:left;padding:8px 10px;border-radius:8px}
+.pin:hover .pin-tip,.pin:focus-visible .pin-tip{display:block}
+
+/* Editor extras */
+.photo-field{display:flex;align-items:center;gap:14px}
+.photo-field img,.photo-field .photo-empty{display:grid;place-items:center;font-size:26px;width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--bg);border:1px solid var(--line);flex:none}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+h3.sub{margin:8px 0 0;font-size:15px;font-family:var(--f-display)}
+@media (max-width:900px){.toolbar{padding-left:16px}.pop{left:16px}}
+.photo-field .hint{margin:2px 0 8px}

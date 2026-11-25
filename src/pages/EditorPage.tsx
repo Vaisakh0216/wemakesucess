@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AtsPanel, ScoreRing } from '../components/AtsPanel';
 import { Checkout } from '../components/Checkout';
 import { Editor, type StepId } from '../components/Editor';
-import { Preview } from '../components/Preview';
+import { DesignToolbar } from '../components/DesignToolbar';
+import { Preview, type Issue } from '../components/Preview';
 import { priceLabel } from '../config';
 import { getDoc, saveDoc } from '../docs';
 import { downloadPdf, fetchConfig, loadUnlock, payWithRazorpay, restorePurchase, saveUnlock, type ServerConfig, type Unlock } from '../payments';
 import { Link } from '../router';
 import { atsChecks, atsScore } from '../shared/ats';
 import { plainText } from '../shared/render';
-import { SAMPLE } from '../shared/resume';
+import { LIMITS, SAMPLE, type Layout } from '../shared/resume';
 import { useResume } from '../useResume';
 
 
@@ -35,6 +36,33 @@ export function EditorPage({ docId }: { docId: string }) {
 
   const checks = useMemo(() => atsChecks(resume), [resume]);
   const pct = atsScore(checks);
+  const issues = useMemo<Issue[]>(
+    () => checks.filter((c) => !c.ok && c.section).map((c) => ({ section: c.section!, message: c.fix })),
+    [checks],
+  );
+  // Page count as last measured by the preview, with the layout it was measured for,
+  // so the fit loop never acts on a count from before its last change.
+  const layoutKey = JSON.stringify(resume.layout);
+  const [measured, setMeasured] = useState({ pages: 1, key: '' });
+  const pages = measured.pages;
+  // "Fit to 1 page": tighten one notch per render (spacing, then margins, then font
+  // size) until the preview measures a single page or every setting is at its minimum.
+  const [fitting, setFitting] = useState(false);
+  useEffect(() => {
+    if (!fitting || measured.key !== layoutKey) return;
+    if (pages <= 1) {
+      setFitting(false);
+      say('Fits on one page');
+      return;
+    }
+    const next = tighten(resume.layout);
+    if (!next) {
+      setFitting(false);
+      say('Still more than one page at the tightest settings. Try shortening a few bullets.', 5000);
+      return;
+    }
+    update((r) => void Object.assign(r.layout, next));
+  }, [fitting, measured, layoutKey, pages, resume.layout, update, say]);
 
   useEffect(() => {
     fetchConfig().then(setCfg);
@@ -151,16 +179,22 @@ export function EditorPage({ docId }: { docId: string }) {
           priceLabel={priceLabel}
         />
         <section className="stage" aria-label="Live preview">
-          <div className="stagebar">
-            <span className="label">Live preview · A4</span>
-            <span className="spacer" />
+          <DesignToolbar resume={resume} update={update} setPath={setPath} pages={pages} onFitOnePage={() => setFitting(true)}>
             <button className="score" type="button" aria-expanded={atsOpen} onClick={() => setAtsOpen((o) => !o)}>
               <ScoreRing pct={pct} />
               <span>ATS check</span>
             </button>
-          </div>
+          </DesignToolbar>
           {atsOpen && <AtsPanel checks={checks} pct={pct} />}
-          <Preview resume={resume} />
+          <Preview
+            resume={resume}
+            issues={issues}
+            onPages={(n) => setMeasured({ pages: n, key: layoutKey })}
+            onIssue={(sec) => {
+              setStep(STEP_FOR[sec] ?? 'more');
+              document.getElementById('form')?.scrollTo(0, 0);
+            }}
+          />
         </section>
       </main>
 
@@ -182,4 +216,23 @@ export function EditorPage({ docId }: { docId: string }) {
       )}
     </>
   );
+}
+
+const STEP_FOR: Partial<Record<Issue['section'], StepId>> = {
+  contact: 'contact',
+  summary: 'summary',
+  experience: 'experience',
+  education: 'education',
+  skills: 'skills',
+  projects: 'extras',
+};
+
+const round = (v: number) => Math.round(v * 1000) / 1000;
+
+/** One notch tighter, or null when everything is already at its minimum. */
+export function tighten(l: Layout): Partial<Layout> | null {
+  if (l.spacing > LIMITS.spacing[0]) return { spacing: round(Math.max(LIMITS.spacing[0], l.spacing - 0.1)) };
+  if (l.margin > LIMITS.margin[0]) return { margin: Math.max(LIMITS.margin[0], l.margin - 2) };
+  if (l.fontScale > LIMITS.fontScale[0]) return { fontScale: round(Math.max(LIMITS.fontScale[0], l.fontScale - 0.025)) };
+  return null;
 }

@@ -1,4 +1,4 @@
-import type { Resume } from './resume.js';
+import type { Resume, SectionKey } from './resume.js';
 import { csv, lines } from './text.js';
 
 export interface AtsCheck {
@@ -7,6 +7,8 @@ export interface AtsCheck {
   pass: string;
   /** Shown when it fails: what to fix. */
   fix: string;
+  /** Where the issue is, for pins on the preview and jumping to the editor. */
+  section: SectionKey | 'contact' | null;
 }
 
 const VERBS =
@@ -24,48 +26,57 @@ export function atsChecks(r: Resume): AtsCheck[] {
       ok: !!c.name.trim() && /\S+@\S+\.\S+/.test(c.email) && c.phone.replace(/\D/g, '').length >= 6,
       pass: 'Name, email and phone are present',
       fix: 'Add your full name, a valid email and a phone number.',
+      section: 'contact',
     },
     {
       ok: !!c.title.trim(),
       pass: 'Target job title under your name',
       fix: 'Add the job title you are applying for; ATS match on it.',
+      section: 'contact',
     },
     {
       ok: words >= 25 && words <= 90,
       pass: `Summary length is ${words} words`,
       fix: `Summary has ${words} words. Aim for 25 to 90.`,
+      section: 'summary',
     },
     {
       ok: jobs.length > 0 && jobs.every((e) => e.start && e.end),
       pass: 'Every job has start and end dates',
       fix: 'Add start and end dates to every job (use “Present” for your current one).',
+      section: 'experience',
     },
     {
       ok: jobs.length > 0 && bullets.length >= 3 * Math.min(jobs.length, 2),
       pass: `${bullets.length} achievement lines in Experience`,
       fix: 'Give your recent jobs at least 3 achievement lines each.',
+      section: 'experience',
     },
     {
       ok: share(VERBS) >= 0.6,
       pass: 'Achievements start with action verbs',
       fix: 'Start more lines with verbs like Led, Built, Reduced, Launched.',
+      section: 'experience',
     },
     {
       ok: share(/\d/) >= 0.4,
       pass: 'Results are quantified',
       fix: 'Add numbers (%, ₹, users, time saved) to at least 40% of lines.',
+      section: 'experience',
     },
     {
       ok: skills >= 6,
       pass: `${skills} skills listed`,
       fix: 'List at least 6 skills, using the job description’s wording.',
+      section: 'skills',
     },
     {
       ok: r.education.some((e) => e.degree || e.school),
       pass: 'Education included',
       fix: 'Add at least one education entry.',
+      section: 'education',
     },
-    { ok: true, pass: 'Single-column layout with standard headings', fix: '' },
+    { ok: true, pass: 'Single-column layout with standard headings', fix: '', section: null },
   ];
 }
 

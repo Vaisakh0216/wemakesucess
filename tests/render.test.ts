@@ -93,3 +93,50 @@ describe('resume CSS', () => {
     for (const v of values) expect(v).toBeLessThanOrEqual(0.1);
   });
 });
+
+describe('layout and extra sections', () => {
+  it('follows the chosen order and leaves hidden sections out of HTML and plain text', () => {
+    const r = cloneResume(SAMPLE);
+    r.layout.order = ['skills', ...r.layout.order.filter((k) => k !== 'skills')];
+    r.layout.hidden = ['summary'];
+    const html = resumeHTML(r);
+    expect(html.indexOf('>Skills<')).toBeLessThan(html.indexOf('>Experience<'));
+    expect(html).not.toContain('>Summary<');
+    const txt = plainText(r);
+    expect(txt.indexOf('SKILLS')).toBeLessThan(txt.indexOf('EXPERIENCE'));
+    expect(txt).not.toContain('SUMMARY');
+  });
+
+  it('renders awards, volunteering, interests and custom sections with escaped titles', () => {
+    const r = cloneResume(SAMPLE);
+    r.awards = 'Hackathon winner';
+    r.interests = 'Chess, Running';
+    r.volunteering = [{ ...r.experience[0], role: 'Mentor', company: 'Code Club', bullets: 'Taught kids' }];
+    r.custom = [{ title: 'Talks <b>', body: 'PyCon India 2025' }];
+    const html = resumeHTML(r);
+    for (const s of ['Hackathon winner', 'Chess, Running', 'Mentor', 'Code Club', 'PyCon India 2025', 'Talks &lt;b&gt;']) expect(html).toContain(s);
+    expect(html).not.toContain('<b>');
+    expect(plainText(r)).toContain('TALKS <B>');
+  });
+
+  it('clamps layout values and restores missing sections when loading saved data', () => {
+    const r = normalizeResume({ layout: { order: ['skills', 'bogus', 'skills'], hidden: ['nope', 'awards'], margin: 99, spacing: 0, fontScale: 'x' } });
+    expect(r.layout.order[0]).toBe('skills');
+    expect(new Set(r.layout.order).size).toBe(r.layout.order.length);
+    expect(r.layout.order).toContain('experience');
+    expect(r.layout.hidden).toEqual(['awards']);
+    expect(r.layout.margin).toBe(22);
+    expect(r.layout.spacing).toBe(0.6);
+    expect(r.layout.fontScale).toBe(1);
+  });
+
+  it('keeps only small data-URL photos', () => {
+    expect(normalizeResume({ photo: 'javascript:alert(1)' }).photo).toBe('');
+    expect(normalizeResume({ photo: 'data:image/jpeg;base64,AAAA' }).photo).toBe('data:image/jpeg;base64,AAAA');
+    expect(normalizeResume({ photo: 'data:image/jpeg;base64,' + 'A'.repeat(300_000) }).photo).toBe('');
+  });
+
+  it('round-trips the sample unchanged', () => {
+    expect(normalizeResume(JSON.parse(JSON.stringify(SAMPLE)))).toEqual(SAMPLE);
+  });
+});
