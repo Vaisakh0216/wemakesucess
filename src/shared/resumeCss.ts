@@ -1,10 +1,10 @@
-/*
+/**
  * Resume sheet styles. Shared by the live preview and the server-side PDF render,
  * so the downloaded PDF matches the preview exactly.
  * ATS rules for every template: single column, real text, standard headings,
  * no tables, no images, no text in page headers or footers.
  */
-.sheet{width:794px;min-height:1123px;background:#fff;color:#1b1b1b;padding:53px 57px;position:relative;transform-origin:top left}
+export const RESUME_CSS = `.sheet{width:794px;min-height:1123px;background:#fff;color:#1b1b1b;padding:53px 57px;position:relative;transform-origin:top left}
 .r{--rc:#1f3a68;font-size:10.5pt;line-height:1.38}
 .r.f-sans{font-family:"Source Sans 3",Arial,sans-serif}
 .r.f-serif{font-family:"Source Serif 4",Georgia,"Times New Roman",serif}
@@ -30,11 +30,11 @@
 .r.t-classic header{text-align:center}
 .r.t-classic h1{text-transform:uppercase;letter-spacing:.08em;font-size:21pt}
 .r.t-classic .headline{font-weight:400;font-style:italic}
-.r.t-classic h2{border-bottom:1px solid #222;padding-bottom:2px;letter-spacing:.1em}
+.r.t-classic h2{border-bottom:1px solid #222;padding-bottom:2px;letter-spacing:.08em}
 /* Modern: accent name and headings */
 .r.t-modern h1{color:var(--rc);font-size:26pt;letter-spacing:-.01em}
 .r.t-modern .headline{color:#333}
-.r.t-modern h2{color:var(--rc);font-size:10.5pt;letter-spacing:.12em;display:flex;align-items:center;gap:10px}
+.r.t-modern h2{color:var(--rc);font-size:10.5pt;letter-spacing:.1em;display:flex;align-items:center;gap:10px}
 .r.t-modern h2::after{content:"";flex:1;height:1px;background:color-mix(in srgb,var(--rc) 35%,#fff)}
 .r.t-modern .org{color:var(--rc)}
 /* Compact: dense, one-page friendly */
@@ -48,7 +48,7 @@
 .r.t-compact .row .when{margin-left:auto}
 /* Executive: double rule, serif feel */
 .r.t-executive h1{font-size:25pt;font-weight:600;letter-spacing:.01em}
-.r.t-executive .headline{text-transform:uppercase;letter-spacing:.14em;font-size:9.5pt;color:var(--rc)}
+.r.t-executive .headline{text-transform:uppercase;letter-spacing:.06em;font-size:9.5pt;color:var(--rc)}
 .r.t-executive header{border-bottom:3px double #333;padding-bottom:10px}
 .r.t-executive h2{text-transform:none;letter-spacing:0;font-size:13pt;font-weight:600;color:var(--rc)}
 .r.t-executive .org{font-style:italic}
@@ -58,3 +58,4 @@
   html,body{margin:0;background:#fff}
   .sheet{box-shadow:none;padding:0;width:auto;min-height:0;transform:none}
 }
+`;

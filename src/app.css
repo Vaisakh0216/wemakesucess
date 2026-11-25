@@ -131,3 +131,8 @@ button,input,textarea,select{font:inherit;color:inherit}
 .success h3{margin:0 0 4px;font-family:var(--f-display)}
 .success p{margin:0;color:var(--muted)}
 #root{min-height:100%}
+.err{margin:0;color:var(--bad);font-size:13px}
+.restore{display:flex;gap:8px;align-items:flex-end}
+.restore .field{flex:1}
+/* The app itself never prints; downloads go through the PDF flow. */
+@media print{#root{display:none}}

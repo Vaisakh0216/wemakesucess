@@ -1,29 +1,25 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AtsPanel, ScoreRing } from './components/AtsPanel';
-import { Checkout, type PaidState } from './components/Checkout';
+import { Checkout } from './components/Checkout';
 import { Editor, type StepId } from './components/Editor';
 import { Preview } from './components/Preview';
 import { priceLabel } from './config';
-import { printResume } from './download';
+import { downloadPdf, fetchConfig, loadUnlock, payWithRazorpay, restorePurchase, resumeId, saveUnlock, type ServerConfig, type Unlock } from './payments';
 import { atsChecks, atsScore } from './shared/ats';
 import { plainText } from './shared/render';
 import { useResume } from './useResume';
 
-const PAID_KEY = 'wms.paid.v1';
-const readPaid = (): PaidState | null => {
-  try {
-    return JSON.parse(localStorage.getItem(PAID_KEY) || 'null');
-  } catch {
-    return null;
-  }
-};
 
 export default function App() {
   const { resume, setPath, update, reset } = useResume();
   const [step, setStep] = useState<StepId>('contact');
   const [atsOpen, setAtsOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [paid, setPaid] = useState<PaidState | null>(readPaid);
+  const [rid] = useState(resumeId);
+  const [unlock, setPaid] = useState<Unlock | null>(() => loadUnlock(rid));
+  const [cfg, setCfg] = useState<ServerConfig | null>(null);
+  // A demo-mode unlock stops counting once real payments are switched on.
+  const paid = unlock && (!unlock.demo || cfg?.payments === false) ? unlock : null;
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -36,11 +32,37 @@ export default function App() {
   const checks = useMemo(() => atsChecks(resume), [resume]);
   const pct = atsScore(checks);
 
-  const download = () => {
+  useEffect(() => {
+    fetchConfig().then(setCfg);
+  }, []);
+
+  const download = async (unlock = paid) => {
+    if (!unlock || !cfg) return;
     setCheckoutOpen(false);
-    printResume(resume);
-    say('Choose “Save as PDF” in the print dialog.', 5000);
+    say('Preparing your PDF…', 8000);
+    try {
+      const how = await downloadPdf(resume, unlock, cfg);
+      say(how === 'file' ? 'PDF downloaded' : 'Choose “Save as PDF” in the print dialog.', 5000);
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'Download failed. Please try again.', 6000);
+    }
   };
+
+  const pay = async () => {
+    if (!cfg) return;
+    if (!cfg.payments) {
+      // Demo mode: no gateway configured on this server; simulate a payment.
+      await new Promise((r) => setTimeout(r, 700));
+      const u: Unlock = { rid, orderId: 'order_DEMO' + Math.random().toString(36).slice(2, 10).toUpperCase(), demo: true };
+      saveUnlock(u);
+      setPaid(u);
+      return;
+    }
+    const c = resume.contact;
+    const u = await payWithRazorpay(rid, { name: c.name, email: c.email, contact: c.phone.replace(/[^\d+]/g, '') });
+    if (u) setPaid(u);
+  };
+
   const onDownload = () => (paid ? download() : setCheckoutOpen(true));
 
   const copyText = async () => {
@@ -103,19 +125,15 @@ export default function App() {
         </section>
       </main>
 
-      {checkoutOpen && (
+      {checkoutOpen && cfg && (
         <Checkout
-          paid={paid}
+          live={cfg.payments}
+          testKeys={cfg.testMode}
+          unlock={paid}
           onClose={() => setCheckoutOpen(false)}
-          onDownload={download}
-          onPaid={(p) => {
-            setPaid(p);
-            try {
-              localStorage.setItem(PAID_KEY, JSON.stringify(p));
-            } catch {
-              /* ignore */
-            }
-          }}
+          onPay={pay}
+          onRestore={async (orderId) => setPaid(await restorePurchase(rid, orderId))}
+          onDownload={() => download()}
         />
       )}
       {toast && (

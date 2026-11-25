@@ -1,0 +1,5 @@
+# Copy to .dev.vars for `npm run dev:full`. Use Razorpay TEST keys only.
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+# Any long random string, e.g. `openssl rand -hex 32`
+UNLOCK_SECRET=change-me

@@ -1,4 +1,4 @@
-import css from './shared/resume.css?raw';
+import { RESUME_CSS } from './shared/resumeCss';
 import { resumeDocument } from './shared/document';
 import { fileName } from './shared/render';
 import type { Resume } from './shared/resume';
@@ -15,7 +15,7 @@ export function printResume(r: Resume): void {
   document.body.appendChild(frame);
   const doc = frame.contentDocument!;
   doc.open();
-  doc.write(resumeDocument(r, css).replace(/<title>.*?<\/title>/, `<title>${fileName(r).replace(/\.pdf$/, '')}</title>`));
+  doc.write(resumeDocument(r, RESUME_CSS, location.origin).replace(/<title>.*?<\/title>/, `<title>${fileName(r).replace(/\.pdf$/, '')}</title>`));
   doc.close();
   const go = () => {
     frame.contentWindow?.focus();

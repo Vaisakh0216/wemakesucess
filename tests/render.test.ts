@@ -84,3 +84,12 @@ describe('fileName', () => {
     expect(fileName(normalizeResume({}))).toBe('Resume.pdf');
   });
 });
+
+describe('resume CSS', () => {
+  it('keeps letter-spacing small enough that PDF text extraction does not split words', async () => {
+    const { RESUME_CSS } = await import('../src/shared/resumeCss');
+    const values = [...RESUME_CSS.matchAll(/letter-spacing:\s*(-?[\d.]+)em/g)].map((m) => parseFloat(m[1]));
+    expect(values.length).toBeGreaterThan(0);
+    for (const v of values) expect(v).toBeLessThanOrEqual(0.1);
+  });
+});

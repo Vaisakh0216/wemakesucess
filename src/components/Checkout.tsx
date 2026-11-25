@@ -1,39 +1,47 @@
 import { useState } from 'react';
 import { priceLabel } from '../config';
+import type { Unlock } from '../payments';
 import { Modal } from './Modal';
 
-export interface PaidState {
-  order: string;
-  at: string;
-}
-
 interface Props {
+  /** Real Razorpay checkout is configured on the server. */
+  live: boolean;
+  /** Razorpay test keys (no real money). */
+  testKeys: boolean;
+  unlock: Unlock | null;
   onClose: () => void;
-  onPaid: (p: PaidState) => void;
+  onPay: () => Promise<void>;
+  onRestore: (orderId: string) => Promise<void>;
   onDownload: () => void;
-  paid: PaidState | null;
 }
 
-const METHODS = {
-  upi: ['UPI ID', 'test@upi'],
-  card: ['Card number', '4111 1111 1111 1111'],
-  nb: ['Bank', 'Test Bank'],
-} as const;
-
-/** Test-mode checkout. Nothing is charged; the Razorpay flow replaces this. */
-export function Checkout({ onClose, onPaid, onDownload, paid }: Props) {
-  const [method, setMethod] = useState<keyof typeof METHODS>('upi');
+export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, onDownload }: Props) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [orderId, setOrderId] = useState('');
 
-  if (paid) {
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (unlock) {
     return (
       <Modal onClose={onClose} labelledBy="mt">
         <div className="mb">
           <div className="success">
             <div className="big">✓</div>
-            <h3 id="mt">Payment successful</h3>
+            <h3 id="mt">{unlock.demo ? 'Demo payment complete' : 'Payment successful'}</h3>
             <p>
-              {priceLabel} test payment · <span className="mono">{paid.order}</span>
+              Order <span className="mono">{unlock.orderId}</span>. Keep this id to restore your purchase.
             </p>
           </div>
           <button className="btn primary wide" type="button" onClick={onDownload}>
@@ -46,14 +54,6 @@ export function Checkout({ onClose, onPaid, onDownload, paid }: Props) {
       </Modal>
     );
   }
-
-  const pay = () => {
-    setBusy(true);
-    setTimeout(() => {
-      onPaid({ order: 'order_TEST' + Math.random().toString(36).slice(2, 10).toUpperCase(), at: new Date().toISOString() });
-      setBusy(false);
-    }, 900);
-  };
 
   return (
     <Modal onClose={onClose} labelledBy="mt">
@@ -72,31 +72,52 @@ export function Checkout({ onClose, onPaid, onDownload, paid }: Props) {
           <b>{priceLabel}</b>
         </div>
         <ul className="perks">
-          <li>Unlimited PDF downloads of this resume</li>
-          <li>Switch templates and re-download any time</li>
+          <li>Unlimited PDF downloads of this resume, forever</li>
+          <li>Edit and switch templates, then re-download free</li>
           <li>Text-based PDF that ATS can read</li>
+          <li>Pay by UPI, card, netbanking or wallet</li>
         </ul>
-        <div className="field">
-          <span className="label">Pay with</span>
-          <div className="seg">
-            {(Object.keys(METHODS) as (keyof typeof METHODS)[]).map((m) => (
-              <button key={m} type="button" aria-pressed={method === m} onClick={() => setMethod(m)}>
-                {{ upi: 'UPI', card: 'Card', nb: 'Netbanking' }[m]}
-              </button>
-            ))}
+        {!live && (
+          <div className="testband">
+            <b>Demo mode.</b> Payments are not set up on this server yet, so nothing is charged.
           </div>
-        </div>
-        <div className="field">
-          <label htmlFor="payField">{METHODS[method][0]}</label>
-          <input id="payField" key={method} defaultValue={METHODS[method][1]} />
-        </div>
-        <div className="testband">
-          <b>Test mode.</b> Nothing is charged. In the live app this step opens Razorpay checkout and the server verifies
-          the payment before unlocking.
-        </div>
-        <button className="btn primary wide" type="button" disabled={busy} onClick={pay}>
-          {busy ? 'Processing…' : `Pay ${priceLabel}`}
+        )}
+        {live && testKeys && (
+          <div className="testband">
+            <b>Razorpay test mode.</b> Use Razorpay's test UPI ID <span className="mono">success@razorpay</span> or a
+            test card. No real money moves.
+          </div>
+        )}
+        {error && (
+          <p className="err" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="btn primary wide" type="button" disabled={busy} onClick={() => run(onPay)}>
+          {busy ? 'Please wait…' : `Pay ${priceLabel}`}
         </button>
+        {live &&
+          (restoring ? (
+            <form
+              className="restore"
+              onSubmit={(e) => {
+                e.preventDefault();
+                run(() => onRestore(orderId.trim()));
+              }}
+            >
+              <div className="field">
+                <label htmlFor="orderId">Razorpay order id from your receipt</label>
+                <input id="orderId" value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="order_…" />
+              </div>
+              <button className="btn" type="submit" disabled={busy || !orderId.trim()}>
+                Restore
+              </button>
+            </form>
+          ) : (
+            <button className="btn ghost small" type="button" onClick={() => setRestoring(true)}>
+              Already paid for this resume? Restore your purchase
+            </button>
+          ))}
       </div>
     </Modal>
   );
