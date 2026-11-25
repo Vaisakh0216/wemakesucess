@@ -39,6 +39,16 @@ Razorpay's order record is the purchase record, so there is no database to run y
 - Contact details in the body, never in a page header or footer.
 - Templates differ only in CSS; `tests/render.test.ts` enforces identical markup.
 
+## Policy pages
+
+`public/legal/` has Terms, Privacy, Refunds, Delivery and Contact pages, which Razorpay checks during KYC. Before going live, replace the placeholders `{{BUSINESS_NAME}}`, `{{SUPPORT_EMAIL}}`, `{{BUSINESS_ADDRESS}}` and `{{JURISDICTION_CITY}}`:
+
+```sh
+grep -rl '{{' public/legal   # lists pages that still have placeholders
+```
+
+The privacy policy describes what the code does today (resume kept in the browser, sent to the server only to render the PDF). Update it when accounts or analytics are added.
+
 ## Develop
 
 ```sh

@@ -136,3 +136,6 @@ button,input,textarea,select{font:inherit;color:inherit}
 .restore .field{flex:1}
 /* The app itself never prints; downloads go through the PDF flow. */
 @media print{#root{display:none}}
+.fine{margin:-4px 0 0;font-size:12px;color:var(--muted);text-align:center}
+.fine a,.legal a{color:var(--muted)}
+.legal{display:flex;gap:12px;flex-wrap:wrap;margin-top:auto;padding-top:16px;border-top:1px solid var(--line);font-size:12px}

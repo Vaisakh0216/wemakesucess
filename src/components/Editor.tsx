@@ -256,6 +256,13 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
             </button>
           )}
         </div>
+        <footer className="legal">
+          <a href="/legal/terms.html">Terms</a>
+          <a href="/legal/privacy.html">Privacy</a>
+          <a href="/legal/refunds.html">Refunds</a>
+          <a href="/legal/delivery.html">Delivery</a>
+          <a href="/legal/contact.html">Contact</a>
+        </footer>
       </div>
     </aside>
   );

@@ -1,0 +1,14 @@
+:root{--bg:#eef1f6;--panel:#fff;--fg:#141b2b;--muted:#5b6579;--line:#d9dee8;--accent:#2747d0}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1420;--panel:#171e2d;--fg:#e7ebf3;--muted:#9aa4b8;--line:#2a3346;--accent:#7d93ff;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.65 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 16px}
+header a{color:var(--fg);text-decoration:none;font-weight:700;font-size:18px}
+main{max-width:760px;margin:24px auto;padding:24px 20px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+@media (max-width:800px){main{margin:16px;padding:18px 16px}}
+h1{font-size:26px;line-height:1.2;margin:0 0 4px}
+h2{font-size:17px;margin:26px 0 6px}
+.updated{color:var(--muted);font-size:13px;margin:0 0 18px}
+a{color:var(--accent)}
+footer{max-width:760px;margin:0 auto 32px;padding:0 20px;color:var(--muted);font-size:13px;display:flex;gap:14px;flex-wrap:wrap}
+footer a{color:var(--muted)}
