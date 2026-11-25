@@ -1,4 +1,5 @@
 import { ACCENTS, BLANK, FONTS, TEMPLATES, type ListKey, type Resume } from '../shared/resume';
+import { AiAssist, type AiContext } from './AiAssist';
 import { Field } from './Field';
 import { PhotoField } from './PhotoField';
 import { Thumb } from './Thumb';
@@ -64,6 +65,17 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
       + {label}
     </button>
   );
+
+  // What AI writing help gets to work from.
+  const base = (): AiContext => ({
+    title: r.contact.title,
+    roles: r.experience
+      .filter((e) => e.role)
+      .map((e) => [e.role, e.company].filter(Boolean).join(' at '))
+      .join('; '),
+    skills: r.skills,
+  });
+  const appendLine = (path: string, cur: string, line: string) => setPath(path, cur.trim() ? `${cur.replace(/\s+$/, '')}\n${line}` : line);
 
   const idx = STEPS.findIndex((s) => s.id === step);
   const prev = STEPS[idx - 1];
@@ -152,6 +164,18 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
         <h2>Professional summary</h2>
         <p className="hint">Two to four sentences: who you are, your strongest result, and the role you want.</p>
         {f('summary', 'Summary', { area: true, rows: 7 })}
+        <div className="ai-row">
+          <AiAssist kind="summary" label="Generate with AI" context={base} pickLabel="Use this" onPick={(s) => setPath('summary', s)} />
+          {r.summary.trim() && (
+            <AiAssist
+              kind="improve"
+              label="Improve my summary"
+              context={() => ({ ...base(), text: r.summary })}
+              pickLabel="Use this"
+              onPick={(s) => setPath('summary', s)}
+            />
+          )}
+        </div>
       </>
     );
   } else if (step === 'experience') {
@@ -172,6 +196,24 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
               {f(`experience.${i}.location`, 'Location', { span: true })}
             </div>
             {f(`experience.${i}.bullets`, 'Achievements (one per line)', { area: true, rows: 5 })}
+            <div className="ai-row">
+              <AiAssist
+                kind="bullets"
+                label="Suggest achievements"
+                context={() => ({ ...base(), role: e.role, company: e.company, text: e.bullets })}
+                onPick={(s) => appendLine(`experience.${i}.bullets`, r.experience[i]?.bullets ?? '', s)}
+              />
+              {e.bullets.trim() && (
+                <AiAssist
+                  kind="improve"
+                  label="Improve these"
+                  context={() => ({ ...base(), role: e.role, company: e.company, text: e.bullets })}
+                  pickLabel="Add"
+                  onPick={(s) => appendLine(`experience.${i}.bullets`, r.experience[i]?.bullets ?? '', s)}
+                  onUseAll={(all) => setPath(`experience.${i}.bullets`, all.join('\n'))}
+                />
+              )}
+            </div>
           </div>
         ))}
         {addBtn('experience', 'Add a job')}
@@ -206,6 +248,14 @@ export function Editor({ resume: r, step, onStep, setPath, update, onReset, onDo
           than “spreadsheets”.
         </p>
         {f('skills', 'Skills', { area: true, rows: 5 })}
+        <div className="ai-row">
+          <AiAssist
+            kind="skills"
+            label="Suggest skills"
+            context={base}
+            onPick={(sk) => setPath('skills', r.skills.trim() ? `${r.skills.replace(/[,\s]+$/, '')}, ${sk}` : sk)}
+          />
+        </div>
         {f('languages', 'Languages', { placeholder: 'English, Hindi' })}
       </>
     );

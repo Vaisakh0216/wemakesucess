@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@cloudflare/puppeteer": "^1.4.0",
     "@sparticuz/chromium": "^158.0.0",
     "@supabase/supabase-js": "^2.119.2",

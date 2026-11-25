@@ -10,6 +10,12 @@ export interface Env {
   SUPABASE_URL?: string;
   /** Supabase anon key (public; row-level security protects the data). */
   SUPABASE_ANON_KEY?: string;
+  /** Claude API key for "Generate with AI". Secret. */
+  ANTHROPIC_API_KEY?: string;
+  /** Optional model override for AI writing help. */
+  AI_MODEL?: string;
+  /** AI generations per signed-in user per day (default 20). */
+  AI_DAILY_LIMIT?: string;
 }
 
 /** ₹299 in paise. The server is the only source of truth for the price. */

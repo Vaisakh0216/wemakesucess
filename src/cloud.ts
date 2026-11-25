@@ -101,6 +101,14 @@ export async function signInWithGoogle() {
   if (error) throw new Error(error.message);
 }
 
+/** The signed-in user's access token, for server calls that need to know who is asking. */
+export async function accessToken(): Promise<string | null> {
+  const sb = await getClient().catch(() => null);
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
 /**
  * Save anything not yet in the account, then sign out and clear this browser's
  * copies, so the next person on a shared computer does not see them.

@@ -78,6 +78,15 @@ How sync works (`src/cloud.ts`):
 - Deleting a document marks it deleted, so other devices remove it too.
 - Signing out saves pending changes, then clears that browser.
 
+## AI writing help (optional)
+
+The editor's AI buttons are **Generate with AI** and **Improve my summary** on the Summary step, **Suggest achievements** and **Improve these** on each job, and **Suggest skills** on the Skills step. They call `/api/ai` (`server/ai.ts`), which uses Claude with structured JSON output.
+
+- **Who can use it:** signed-in users only. The daily limit (`AI_DAILY_LIMIT`, default 20 a day, reset at midnight India time) is counted in Supabase by `use_ai_credit` in `supabase/schema.sql`. Run the updated schema file.
+- **Setup:** add `ANTHROPIC_API_KEY` in Vercel (console.anthropic.com → API keys). Set a monthly spend limit in the Anthropic Console as a hard cap.
+- **Cost:** the default model is `claude-opus-5-5` at low effort, about ₹1 per generation. Set `AI_MODEL=claude-haiku-5-5` to cut that to about a twentieth.
+- **No invented facts:** the prompt never invents employers, dates or numbers. It writes placeholders such as `[X%]` for the user to fill in.
+
 ## Develop
 
 ```sh

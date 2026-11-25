@@ -181,3 +181,21 @@ button,input,textarea,select{font:inherit;color:inherit}
 h3.sub{margin:8px 0 0;font-size:15px;font-family:var(--f-display)}
 @media (max-width:900px){.toolbar{padding-left:16px}.pop{left:16px}}
 .photo-field .hint{margin:2px 0 8px}
+
+/* AI writing help */
+.ai-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;margin-top:-6px}
+.ai{display:contents}
+.ai-row:empty{display:none}
+.ai-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:5px 12px;font-weight:600;font-size:12.5px;cursor:pointer}
+.ai-btn:hover{border-color:var(--accent)}
+.ai-btn:disabled{opacity:.7;cursor:progress}
+.ai-panel{order:1;flex-basis:100%;position:relative;border:1px solid var(--line);border-radius:10px;padding:12px 36px 12px 12px;background:var(--bg);font-size:13px}
+.ai-panel p{margin:0}
+.ai-panel .muted{color:var(--muted)}
+.ai-close{position:absolute;top:6px;right:6px;border:0;background:none;color:var(--muted);cursor:pointer;width:26px;height:26px;border-radius:6px}
+.ai-close:hover{background:var(--panel);color:var(--fg)}
+.ai-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ai-list li{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.ai-list li span{flex:1;line-height:1.45}
+.ai-list .btn{flex:none}
+.ai-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:12px}

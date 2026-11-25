@@ -42,3 +42,37 @@ end $$;
 drop trigger if exists documents_limit on public.documents;
 create trigger documents_limit before insert on public.documents
   for each row execute function public.documents_limit();
+
+-- "Generate with AI": a per-user daily counter. The server calls use_ai_credit
+-- with the signed-in user's token before each generation.
+create table if not exists public.ai_usage (
+  user_id uuid    not null references auth.users (id) on delete cascade,
+  day     date    not null,
+  count   integer not null default 0,
+  primary key (user_id, day)
+);
+
+alter table public.ai_usage enable row level security;
+
+drop policy if exists "Users read their own AI usage" on public.ai_usage;
+create policy "Users read their own AI usage" on public.ai_usage
+  for select to authenticated using (user_id = (select auth.uid()));
+
+-- Adds one use for today (India time) and returns how many are left; -1 when over the limit.
+create or replace function public.use_ai_credit(p_limit integer) returns integer
+language plpgsql security definer set search_path = '' as $$
+declare
+  used integer;
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '28000';
+  end if;
+  insert into public.ai_usage (user_id, day, count)
+  values (auth.uid(), (now() at time zone 'Asia/Kolkata')::date, 1)
+  on conflict (user_id, day) do update set count = public.ai_usage.count + 1
+  returning count into used;
+  return case when used > p_limit then -1 else p_limit - used end;
+end $$;
+
+revoke execute on function public.use_ai_credit(integer) from public, anon;
+grant execute on function public.use_ai_credit(integer) to authenticated;

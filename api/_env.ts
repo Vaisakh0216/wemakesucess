@@ -7,4 +7,7 @@ export const env = (): Env => ({
   UNLOCK_SECRET: process.env.UNLOCK_SECRET,
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  AI_MODEL: process.env.AI_MODEL,
+  AI_DAILY_LIMIT: process.env.AI_DAILY_LIMIT,
 });

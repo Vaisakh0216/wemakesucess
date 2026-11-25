@@ -7,6 +7,8 @@ export interface ServerConfig {
   testMode: boolean;
   amount: number;
   serverPdf: boolean;
+  /** "Generate with AI" is available (needs sign-in). */
+  ai?: boolean;
   /** Supabase settings when sign-in is switched on. */
   auth?: { url: string; anonKey: string } | null;
 }

@@ -6,3 +6,6 @@ UNLOCK_SECRET=change-me
 # Optional: sign-in and cloud sync. Supabase → Project Settings → API.
 SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_ANON_KEY=eyJ...
+# Optional: "Generate with AI" (needs Supabase sign-in too). console.anthropic.com → API keys.
+ANTHROPIC_API_KEY=sk-ant-...
+# AI_DAILY_LIMIT=20
