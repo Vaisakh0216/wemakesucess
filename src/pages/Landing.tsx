@@ -1,7 +1,7 @@
 import { SiteFooter, SiteHeader } from '../components/Site';
 import { ResumeThumb } from '../components/ResumeThumb';
 import { TemplateGallery } from '../components/TemplateGallery';
-import { priceLabel } from '../config';
+import { coverPriceLabel, priceLabel } from '../config';
 import { createDoc } from '../docs';
 import { Link, navigate } from '../router';
 import { SAMPLE } from '../shared/resume';
@@ -147,8 +147,9 @@ Senior Software Engineer, Kiranakart
             <p className="price-big">Free</p>
             <ul>
               <li>All templates, colours and fonts</li>
-              <li>Unlimited resumes in My Documents</li>
+              <li>Unlimited resumes and cover letters</li>
               <li>Live preview and ATS check</li>
+              <li>Import your old resume (PDF or Word)</li>
               <li>Copy as plain text</li>
             </ul>
             <button className="btn big" type="button" onClick={start}>
@@ -165,6 +166,7 @@ Senior Software Engineer, Kiranakart
               <li>Unlimited re-downloads of that resume</li>
               <li>Edit and switch templates any time</li>
               <li>UPI, cards, netbanking, wallets</li>
+              <li>Matching cover letter: {coverPriceLabel} each</li>
             </ul>
             <button className="btn primary big" type="button" onClick={start}>
               Create my resume →

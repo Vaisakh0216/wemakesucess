@@ -1,3 +1,4 @@
+import { coverFromResume, normalizeCover, type CoverLetter } from './shared/cover';
 import { cloneResume, normalizeResume, SAMPLE, type Resume, type TemplateId } from './shared/resume';
 
 /**
@@ -5,15 +6,16 @@ import { cloneResume, normalizeResume, SAMPLE, type Resume, type TemplateId } fr
  * the resume id that a ₹299 purchase unlocks. When signed in, cloud.ts mirrors
  * them to the account.
  */
-export interface Doc {
+interface DocBase {
   id: string;
-  kind: 'resume';
   title: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;
-  data: Resume;
 }
+export type ResumeDoc = DocBase & { kind: 'resume'; data: Resume };
+export type CoverDoc = DocBase & { kind: 'cover'; data: CoverLetter };
+export type Doc = ResumeDoc | CoverDoc;
 
 const KEY = 'wms.docs.v1';
 const LEGACY_DRAFT = ['wms.draft.v1', 'shortlist.draft'];
@@ -43,15 +45,14 @@ function persist(docs: Doc[]) {
 
 function normalizeDoc(x: any): Doc | null {
   if (!x || typeof x.id !== 'string') return null;
-  return {
+  const base: DocBase = {
     id: x.id,
-    kind: 'resume',
     title: typeof x.title === 'string' ? x.title.slice(0, 120) : 'My Resume',
     tags: Array.isArray(x.tags) ? x.tags.filter((t: unknown) => typeof t === 'string').slice(0, 10) : [],
     createdAt: typeof x.createdAt === 'string' ? x.createdAt : new Date().toISOString(),
     updatedAt: typeof x.updatedAt === 'string' ? x.updatedAt : new Date().toISOString(),
-    data: normalizeResume(x.data),
   };
+  return x.kind === 'cover' ? { ...base, kind: 'cover', data: normalizeCover(x.data) } : { ...base, kind: 'resume', data: normalizeResume(x.data) };
 }
 
 export function listDocs(): Doc[] {
@@ -82,12 +83,20 @@ export function listDocs(): Doc[] {
 }
 
 export const getDoc = (id: string) => listDocs().find((d) => d.id === id) ?? null;
+export const getResume = (id: string) => {
+  const d = getDoc(id);
+  return d?.kind === 'resume' ? d : null;
+};
+export const getCover = (id: string) => {
+  const d = getDoc(id);
+  return d?.kind === 'cover' ? d : null;
+};
 
-export function createDoc(opts: { template?: TemplateId; blank?: boolean; data?: Resume; title?: string } = {}): Doc {
+export function createDoc(opts: { template?: TemplateId; blank?: boolean; data?: Resume; title?: string } = {}): ResumeDoc {
   const now = new Date().toISOString();
   const base = opts.data ? cloneResume(opts.data) : opts.blank ? blankResume() : cloneResume(SAMPLE);
   if (opts.template) base.template = opts.template;
-  const doc: Doc = {
+  const doc: ResumeDoc = {
     id: crypto.randomUUID(),
     kind: 'resume',
     title: opts.title ?? nextTitle(),
@@ -101,21 +110,41 @@ export function createDoc(opts: { template?: TemplateId; blank?: boolean; data?:
 }
 
 function nextTitle() {
-  const n = listDocs().length;
+  const n = listDocs().filter((d) => d.kind === 'resume').length;
   return n ? `My Resume ${n + 1}` : 'My Resume';
+}
+
+/** A new cover letter, matching a resume's design and contact details when one is given. */
+export function createCover(opts: { from?: ResumeDoc | null; data?: CoverLetter; title?: string } = {}): CoverDoc {
+  const now = new Date().toISOString();
+  const n = listDocs().filter((d) => d.kind === 'cover').length;
+  const data = opts.data ? normalizeCover(structuredClone(opts.data)) : coverFromResume(opts.from?.data ?? null, opts.from?.id);
+  const doc: CoverDoc = {
+    id: crypto.randomUUID(),
+    kind: 'cover',
+    title: opts.title ?? (n ? `Cover Letter ${n + 1}` : 'Cover Letter'),
+    tags: [],
+    createdAt: now,
+    updatedAt: now,
+    data,
+  };
+  persist([doc, ...listDocs()]);
+  return doc;
 }
 
 export function blankResume(): Resume {
   return normalizeResume({ template: 'modern', experience: [{}], education: [{}] });
 }
 
-export function saveDoc(id: string, patch: Partial<Omit<Doc, 'id'>>) {
-  persist(listDocs().map((d) => (d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d)));
+export function saveDoc(id: string, patch: { title?: string; tags?: string[]; data?: Resume | CoverLetter }) {
+  persist(listDocs().map((d) => (d.id === id ? ({ ...d, ...patch, updatedAt: new Date().toISOString() } as Doc) : d)));
 }
 
 export function duplicateDoc(id: string): Doc | null {
   const d = getDoc(id);
-  return d ? createDoc({ data: d.data, title: `${d.title} (copy)` }) : null;
+  if (!d) return null;
+  const title = `${d.title} (copy)`;
+  return d.kind === 'cover' ? createCover({ data: d.data, title }) : createDoc({ data: d.data, title });
 }
 
 export function deleteDoc(id: string) {

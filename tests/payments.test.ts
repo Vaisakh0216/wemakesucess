@@ -146,3 +146,37 @@ describe('/api/pdf', () => {
     expect((await handlePdf(pdfCtx({}), env, null)).status).toBe(501);
   });
 });
+
+describe('cover letters (₹99)', () => {
+  const render = vi.fn(async (html: string) => new TextEncoder().encode(html));
+  const pdfReq = (body: unknown) => new Request('https://site.example/api/pdf', { method: 'POST', body: JSON.stringify(body) });
+  const coverNotes = { rid: RID, product: 'pdf_unlock_one_cover_letter' };
+
+  it('creates a ₹99 order tagged as a cover letter', async () => {
+    mockRazorpay(null);
+    const res = await order(ctx({ rid: RID, product: 'cover' }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).amount).toBe(9900);
+  });
+
+  it('issues a cover-only token for a ₹99 order, and rejects a ₹99 order posing as a resume', async () => {
+    mockRazorpay(rzOrder({ amount: 9900, amount_paid: 9900, notes: coverNotes }));
+    const res = await verify(ctx({ rid: RID, razorpay_order_id: 'order_ABC123456', razorpay_payment_id: 'pay_1', razorpay_signature: await hmacHex('sek', 'order_ABC123456|pay_1') }));
+    expect(res.status).toBe(200);
+    expect((await verifyUnlock((await res.json()).token, 'unlock-secret'))?.p).toBe('cover');
+    mockRazorpay(rzOrder({ amount: 9900, amount_paid: 9900 }));
+    expect((await restore(ctx({ rid: RID, orderId: 'order_ABC123456' }))).status).toBe(404);
+  });
+
+  it('a cover token renders only cover letters, and a resume token only resumes', async () => {
+    const coverToken = await signUnlock({ rid: RID, oid: 'order_1', iat: 1, p: 'cover' }, 'unlock-secret');
+    const resumeToken = await signUnlock({ rid: RID, oid: 'order_2', iat: 1 }, 'unlock-secret');
+    const cover = { contact: { name: 'Asha Rao' }, recipient: { company: 'Infosys' }, body: 'Para one.\n\nPara two.' };
+    const ok = await handlePdf(pdfReq({ rid: RID, token: coverToken, kind: 'cover', cover }), env, render);
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('content-disposition')).toContain('Asha_Rao_Cover_Letter_Infosys.pdf');
+    expect(await ok.text()).toContain('<p>Para two.</p>');
+    expect((await handlePdf(pdfReq({ rid: RID, token: coverToken, resume: { contact: { name: 'X' } } }), env, render)).status).toBe(402);
+    expect((await handlePdf(pdfReq({ rid: RID, token: resumeToken, kind: 'cover', cover }), env, render)).status).toBe(402);
+  });
+});

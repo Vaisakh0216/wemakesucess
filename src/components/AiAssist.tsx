@@ -3,8 +3,8 @@ import { accessToken, useAuth } from '../cloud';
 import { fetchConfig } from '../payments';
 import { Link } from '../router';
 
-export type AiKind = 'summary' | 'bullets' | 'skills' | 'improve';
-export type AiContext = Partial<Record<'title' | 'role' | 'company' | 'roles' | 'skills' | 'text', string>>;
+export type AiKind = 'summary' | 'bullets' | 'skills' | 'improve' | 'cover';
+export type AiContext = Partial<Record<'title' | 'role' | 'company' | 'roles' | 'skills' | 'text' | 'background' | 'jd', string>>;
 
 const MESSAGES: Record<string, string> = {
   daily_limit: 'You have used today’s AI suggestions. More tomorrow.',

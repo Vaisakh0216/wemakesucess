@@ -59,6 +59,13 @@ export const RESUME_CSS = `.sheet{width:794px;min-height:1123px;background:#fff;
 .r .photo{width:84px;height:84px;border-radius:50%;object-fit:cover;flex:none}
 .r.t-classic header{justify-content:center}
 .r.t-classic header .hd{flex:0 1 auto}
+/* Cover letter: same header as the resume, then a plain business letter. */
+.r.cover .letter{margin-top:calc(26px*var(--sp,1));font-size:calc(11pt*var(--fs,1));line-height:1.5}
+.r.cover .letter p{margin:0 0 12px}
+.r.cover .letter .date{margin-bottom:16px}
+.r.cover .letter .to{margin-bottom:16px}
+.r.cover .letter .closing{margin-top:20px;margin-bottom:28px}
+.r.cover .letter .signature{font-weight:600}
 @media print{
   @page{size:A4;margin:14mm 15mm}
   html,body{margin:0;background:#fff}

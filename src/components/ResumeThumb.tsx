@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { coverHTML, type CoverLetter } from '../shared/cover';
 import { resumeHTML } from '../shared/render';
 import type { Resume } from '../shared/resume';
 
@@ -6,8 +7,8 @@ import type { Resume } from '../shared/resume';
  * A real, scaled-down render of a resume's first page (same HTML as the PDF).
  * Fills its container's width, up to `max` pixels.
  */
-export function ResumeThumb({ resume, max = 260 }: { resume: Resume; max?: number }) {
-  const html = useMemo(() => resumeHTML(resume), [resume]);
+export function ResumeThumb({ resume, cover, max = 260 }: { resume?: Resume; cover?: CoverLetter; max?: number }) {
+  const html = useMemo(() => (cover ? coverHTML(cover) : resume ? resumeHTML(resume) : ''), [resume, cover]);
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(max);
 

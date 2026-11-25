@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { coverHTML, type CoverLetter } from '../shared/cover';
 import { resumeHTML } from '../shared/render';
 import type { Resume, SectionKey } from '../shared/resume';
 
@@ -12,7 +13,8 @@ export interface Issue {
 }
 
 interface Props {
-  resume: Resume;
+  resume?: Resume;
+  cover?: CoverLetter;
   issues?: Issue[];
   onIssue?: (section: Issue['section']) => void;
   onPages?: (pages: number) => void;
@@ -22,15 +24,17 @@ interface Props {
  * Live A4 preview, scaled to fit. Shows where pages break (as the PDF will, using
  * the chosen margins) and pins ATS issues next to the section they belong to.
  */
-export function Preview({ resume, issues = [], onIssue, onPages }: Props) {
+export function Preview({ resume, cover, issues = [], onIssue, onPages }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [pages, setPages] = useState(1);
   const [pins, setPins] = useState<{ top: number; section: Issue['section']; messages: string[] }[]>([]);
-  const html = useMemo(() => resumeHTML(resume), [resume]);
-  const padY = Math.round(resume.layout.margin * PX_PER_MM);
-  const padX = Math.round((resume.layout.margin + 1) * PX_PER_MM);
+  const html = useMemo(() => (cover ? coverHTML(cover) : resume ? resumeHTML(resume) : ''), [resume, cover]);
+  const margin = (cover ?? resume)?.layout.margin ?? 14;
+  const padY = Math.round(margin * PX_PER_MM);
+  // Matches the @page margins in document.ts.
+  const padX = Math.round((margin + (cover ? 2 : 1)) * PX_PER_MM);
   const usable = PAGE_H - 2 * padY;
   const issueKey = issues.map((i) => i.section + i.message).join('|');
 

@@ -27,6 +27,11 @@ React + Vite + TypeScript. Hosted on **Vercel**: the app is static files, and th
 - `functions/` is the same thin layer for Cloudflare Pages (PDF via Cloudflare Browser Rendering), kept so the app can move there later.
 - Accounts and cloud-saved resumes come after launch.
 
+## Cover letters
+
+- **Where they live:** My Documents → Cover letters, or "Write a matching cover letter" on a resume card. A letter copies that resume's design and contact details. Its editor is at `/cover/:id`, and "Write it with AI" drafts the body from the linked resume and a pasted job description.
+- **Price:** ₹99 per letter, unlimited re-downloads. The order notes say `pdf_unlock_one_cover_letter`, and the unlock token carries `p: "cover"`. `/api/pdf` only renders a cover letter with a cover token, and a resume with a resume token, so a ₹99 purchase cannot download a resume.
+
 ## How payment works
 
 The browser never decides that someone has paid.
