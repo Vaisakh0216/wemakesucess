@@ -59,6 +59,34 @@ grep -rl '{{' public/legal   # lists pages that still have placeholders
 
 The privacy policy describes what the code does today (resume kept in the browser, sent to the server only to render the PDF). Update it when accounts or analytics are added.
 
+## Sign-in and saved documents (optional)
+
+Without these settings the app works as before: documents live in the browser and the "Sign in" button is hidden.
+
+1. Create a free project at [supabase.com](https://supabase.com) (region: Mumbai).
+2. **SQL Editor:** run `supabase/schema.sql`. It creates the `documents` table with row-level security, so each user can read and write only their own rows.
+3. **Authentication → URL Configuration:** set Site URL to your site (for example `https://wemakesucess.vercel.app`) and add `https://*.vercel.app/app` and `http://localhost:5173/app` to Redirect URLs.
+4. **Email sign-in** works out of the box. The built-in mailer is rate-limited, so before launch add your own SMTP under Authentication → Emails. Resend's free tier is enough.
+5. **Google:** create an OAuth client (Web application) in Google Cloud Console → APIs & Services → Credentials. Add the callback URL that Supabase shows under Authentication → Providers → Google, then paste the client id and secret there.
+6. **Vercel → Settings → Environment Variables:** add `SUPABASE_URL` and `SUPABASE_ANON_KEY` from Supabase → Project Settings → API. Both are public; the table's security policy protects the data.
+
+How sync works (`src/cloud.ts`):
+
+- Signing in uploads the documents already in the browser and downloads the ones in the account. For each document the newer copy wins.
+- Edits are saved about 1.5 seconds after you stop typing.
+- Purchases travel with their document. The unlock token is still checked by `/api/pdf`, so a token edited in the database is useless.
+- Deleting a document marks it deleted, so other devices remove it too.
+- Signing out saves pending changes, then clears that browser.
+
+## AI writing help (optional)
+
+The editor's AI buttons are **Generate with AI** and **Improve my summary** on the Summary step, **Suggest achievements** and **Improve these** on each job, and **Suggest skills** on the Skills step. They call `/api/ai` (`server/ai.ts`), which uses Claude with structured JSON output.
+
+- **Who can use it:** signed-in users only. The daily limit (`AI_DAILY_LIMIT`, default 20 a day, reset at midnight India time) is counted in Supabase by `use_ai_credit` in `supabase/schema.sql`. Run the updated schema file.
+- **Setup:** add `ANTHROPIC_API_KEY` in Vercel (console.anthropic.com → API keys). Set a monthly spend limit in the Anthropic Console as a hard cap.
+- **Cost:** the default model is `claude-opus-5-5` at low effort, about ₹1 per generation. Set `AI_MODEL=claude-haiku-5-5` to cut that to about a twentieth.
+- **No invented facts:** the prompt never invents employers, dates or numbers. It writes placeholders such as `[X%]` for the user to fill in.
+
 ## Develop
 
 ```sh

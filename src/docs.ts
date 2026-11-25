@@ -2,7 +2,8 @@ import { cloneResume, normalizeResume, SAMPLE, type Resume, type TemplateId } fr
 
 /**
  * Documents saved in this browser ("My Documents"). Each document id doubles as
- * the resume id that a ₹299 purchase unlocks. Accounts and cloud sync come later.
+ * the resume id that a ₹299 purchase unlocks. When signed in, cloud.ts mirrors
+ * them to the account.
  */
 export interface Doc {
   id: string;
@@ -17,6 +18,7 @@ export interface Doc {
 const KEY = 'wms.docs.v1';
 const LEGACY_DRAFT = ['wms.draft.v1', 'shortlist.draft'];
 const LEGACY_RID = 'wms.rid.v1';
+const TOMBSTONES = 'wms.deleted.v1';
 
 const read = (k: string) => {
   try {
@@ -117,7 +119,61 @@ export function duplicateDoc(id: string): Doc | null {
 }
 
 export function deleteDoc(id: string) {
+  // Remember the deletion so the next sync removes the account copy too.
+  try {
+    localStorage.setItem(TOMBSTONES, JSON.stringify([...new Set([...deletedIds(), id])]));
+  } catch {
+    /* ignore */
+  }
   persist(listDocs().filter((d) => d.id !== id));
+}
+
+/** Documents deleted in this browser that the account has not heard about yet. */
+export function deletedIds(): string[] {
+  try {
+    const v = JSON.parse(read(TOMBSTONES) || '[]');
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function forgetDeleted(ids: string[]) {
+  try {
+    localStorage.setItem(TOMBSTONES, JSON.stringify(deletedIds().filter((x) => !ids.includes(x))));
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Bring in documents from the account: newer copies replace local ones, and
+ * documents deleted elsewhere are removed. Local edits that are newer stay.
+ */
+export function mergeDocs(remote: unknown[], removed: string[]) {
+  const byId = new Map(listDocs().map((d) => [d.id, d]));
+  let changed = false;
+  for (const x of remote) {
+    const d = normalizeDoc(x);
+    if (!d) continue;
+    const mine = byId.get(d.id);
+    if (!mine || Date.parse(d.updatedAt) > Date.parse(mine.updatedAt)) {
+      byId.set(d.id, d);
+      changed = true;
+    }
+  }
+  for (const id of removed) changed = byId.delete(id) || changed;
+  if (changed) persist([...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+}
+
+/** Remove every document from this browser (after signing out; the account keeps them). */
+export function clearLocalDocs() {
+  try {
+    localStorage.removeItem(TOMBSTONES);
+  } catch {
+    /* ignore */
+  }
+  persist([]);
 }
 
 export function subscribeDocs(fn: () => void) {

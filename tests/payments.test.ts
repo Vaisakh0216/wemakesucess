@@ -34,6 +34,15 @@ const mockRazorpay = (o: object | null) =>
   );
 afterEach(() => vi.unstubAllGlobals());
 
+describe('config', () => {
+  it('shares Supabase settings only when both are set', async () => {
+    const off = await handleConfig({ SUPABASE_URL: 'https://x.supabase.co' }, false).json();
+    expect(off.auth).toBeNull();
+    const on = await handleConfig({ SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'anon' }, false).json();
+    expect(on.auth).toEqual({ url: 'https://x.supabase.co', anonKey: 'anon' });
+  });
+});
+
 describe('unlock tokens', () => {
   it('round-trips and rejects tampering', async () => {
     const t = await signUnlock({ rid: RID, oid: 'order_1', iat: 1 }, 's');

@@ -7,6 +7,10 @@ export interface ServerConfig {
   testMode: boolean;
   amount: number;
   serverPdf: boolean;
+  /** "Generate with AI" is available (needs sign-in). */
+  ai?: boolean;
+  /** Supabase settings when sign-in is switched on. */
+  auth?: { url: string; anonKey: string } | null;
 }
 
 /** Saved proof of purchase for one resume. */
@@ -52,16 +56,36 @@ export const loadUnlock = (rid: string): Unlock | null => allUnlocks()[rid] ?? n
 
 export function saveUnlock(u: Unlock) {
   put(UNLOCKS_KEY, JSON.stringify({ ...allUnlocks(), [u.rid]: u }));
+  if (typeof dispatchEvent === 'function') dispatchEvent(new Event(UNLOCK_EVENT));
 }
 
-export async function fetchConfig(): Promise<ServerConfig> {
+/** Fired after a purchase is saved, so cloud sync can copy it to the account. */
+export const UNLOCK_EVENT = 'wms:unlock';
+
+export function clearUnlocks() {
+  put(UNLOCKS_KEY, '{}');
+  try {
+    localStorage.removeItem(LEGACY_UNLOCK_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+let configPromise: Promise<ServerConfig> | null = null;
+
+/** Server settings, fetched once per page load. */
+export function fetchConfig(): Promise<ServerConfig> {
+  return (configPromise ??= loadConfig());
+}
+
+async function loadConfig(): Promise<ServerConfig> {
   try {
     const res = await fetch('/api/config');
     if (res.ok && res.headers.get('content-type')?.includes('json')) return await res.json();
   } catch {
     /* static hosting or offline: fall through to demo mode */
   }
-  return { payments: false, testMode: true, amount: 29900, serverPdf: false };
+  return { payments: false, testMode: true, amount: 29900, serverPdf: false, auth: null };
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {

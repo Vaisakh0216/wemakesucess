@@ -1,4 +1,5 @@
 import { Link } from '../router';
+import { AccountButton } from './Account';
 
 export function SiteHeader() {
   return (
@@ -16,6 +17,7 @@ export function SiteHeader() {
         <a href="/#faq">FAQ</a>
       </nav>
       <span className="spacer" />
+      <AccountButton />
       <Link href="/app" className="btn primary">
         My Documents
       </Link>

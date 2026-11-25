@@ -43,3 +43,36 @@ describe('My Documents store', () => {
     expect(loadUnlock('c')).toBeNull();
   });
 });
+
+describe('account sync helpers', () => {
+  it('remembers deletions until the account has them', async () => {
+    const { createDoc, deleteDoc, deletedIds, forgetDeleted } = await import('../src/docs');
+    const a = createDoc();
+    deleteDoc(a.id);
+    expect(deletedIds()).toEqual([a.id]);
+    forgetDeleted([a.id]);
+    expect(deletedIds()).toEqual([]);
+  });
+
+  it('merges account copies: newer wins, local newer stays, deletions apply', async () => {
+    const { createDoc, getDoc, listDocs, mergeDocs, saveDoc } = await import('../src/docs');
+    const a = createDoc({ title: 'A' });
+    const b = createDoc({ title: 'B' });
+    saveDoc(b.id, { title: 'B local edit' });
+    const old = '2000-01-01T00:00:00.000Z';
+    const future = '2999-01-01T00:00:00.000Z';
+    mergeDocs(
+      [
+        { ...a, title: 'A from phone', updatedAt: future },
+        { ...getDoc(b.id)!, title: 'B stale', updatedAt: old },
+        { id: '99999999-2222-4333-8444-555555555555', title: 'Only in account', data: {}, createdAt: old, updatedAt: old },
+      ],
+      [],
+    );
+    expect(getDoc(a.id)!.title).toBe('A from phone');
+    expect(getDoc(b.id)!.title).toBe('B local edit');
+    expect(getDoc('99999999-2222-4333-8444-555555555555')!.title).toBe('Only in account');
+    mergeDocs([], [a.id]);
+    expect(listDocs().map((d) => d.id)).not.toContain(a.id);
+  });
+});

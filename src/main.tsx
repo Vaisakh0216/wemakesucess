@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { initAuth } from './cloud';
 import { fontFaces } from './shared/fonts';
 import { RESUME_CSS } from './shared/resumeCss';
 import './app.css';
@@ -10,6 +11,8 @@ import './site.css';
 const style = document.createElement('style');
 style.textContent = fontFaces() + RESUME_CSS;
 document.head.append(style);
+
+void initAuth();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

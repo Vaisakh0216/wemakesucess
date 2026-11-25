@@ -1,3 +1,4 @@
+import { aiConfigured } from './ai.js';
 /**
  * Platform-neutral API handlers (Web Request in, Response out).
  * Thin adapters in api/ (Vercel) and functions/api/ (Cloudflare Pages) call these.
@@ -36,6 +37,8 @@ export function handleConfig(env: Env, serverPdf: boolean): Response {
     testMode: !!env.RAZORPAY_KEY_ID?.startsWith('rzp_test_'),
     amount: PRICE_PAISE,
     serverPdf,
+    ai: aiConfigured(env),
+    auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? { url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY } : null,
   });
 }
 

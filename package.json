@@ -13,8 +13,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@cloudflare/puppeteer": "^1.4.0",
     "@sparticuz/chromium": "^158.0.0",
+    "@supabase/supabase-js": "^2.119.2",
     "puppeteer-core": "^25.18.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

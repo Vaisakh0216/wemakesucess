@@ -16,6 +16,7 @@ export function usePath(): string {
     const on = () => setPath(location.pathname);
     listeners.add(on);
     addEventListener('popstate', on);
+    on(); // a child may have navigated before this effect subscribed
     return () => {
       listeners.delete(on);
       removeEventListener('popstate', on);

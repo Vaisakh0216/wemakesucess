@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { AccountButton, SaveToAccountBanner } from '../components/Account';
+import { useAuth } from '../cloud';
 import { Modal } from '../components/Modal';
 import { ResumeThumb } from '../components/ResumeThumb';
 import { TemplateGallery } from '../components/TemplateGallery';
@@ -13,6 +15,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'n
 
 export function Documents() {
   const docs = useSyncExternalStore(subscribeDocs, listDocs);
+  const auth = useAuth();
   const [sort, setSort] = useState<Sort>('edited');
   const [tag, setTag] = useState('All');
   const [adding, setAdding] = useState(false);
@@ -44,7 +47,9 @@ export function Documents() {
         <button className="btn primary" type="button" onClick={() => setAdding(true)}>
           + New resume
         </button>
+        <AccountButton />
       </header>
+      <SaveToAccountBanner />
 
       <div className="dash-bar">
         <div className="seg" role="group" aria-label="Document type">
@@ -90,7 +95,9 @@ export function Documents() {
         )}
       </main>
       <p className="dash-note">
-        Documents are saved in this browser. Clearing site data removes them; paid PDFs can be restored with your order id.
+        {auth.status === 'in'
+          ? 'Documents and purchases are saved to your account. Sign in on any device to open them.'
+          : 'Documents are saved in this browser. Clearing site data removes them; paid PDFs can be restored with your order id.'}
       </p>
 
       {adding && (
