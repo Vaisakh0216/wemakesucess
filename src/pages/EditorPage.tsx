@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AccountButton } from '../components/Account';
 import { AtsPanel, ScoreRing } from '../components/AtsPanel';
 import { Checkout } from '../components/Checkout';
 import { Editor, type StepId } from '../components/Editor';
@@ -159,6 +160,7 @@ export function EditorPage({ docId }: { docId: string }) {
         <button className="btn primary" type="button" onClick={onDownload}>
           Download PDF{!paid && <span className="price">· {priceLabel}</span>}
         </button>
+        <AccountButton />
       </header>
 
       <main className="work">

@@ -36,6 +36,7 @@ export function handleConfig(env: Env, serverPdf: boolean): Response {
     testMode: !!env.RAZORPAY_KEY_ID?.startsWith('rzp_test_'),
     amount: PRICE_PAISE,
     serverPdf,
+    auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? { url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY } : null,
   });
 }
 

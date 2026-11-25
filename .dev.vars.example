@@ -3,3 +3,6 @@ RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxxx
 RAZORPAY_KEY_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
 # Any long random string, e.g. `openssl rand -hex 32`
 UNLOCK_SECRET=change-me
+# Optional: sign-in and cloud sync. Supabase → Project Settings → API.
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_ANON_KEY=eyJ...

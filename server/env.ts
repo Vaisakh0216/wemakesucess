@@ -6,6 +6,10 @@ export interface Env {
   RAZORPAY_KEY_SECRET?: string;
   /** Random secret (32+ chars) used to sign unlock tokens. */
   UNLOCK_SECRET?: string;
+  /** Supabase project URL, for sign-in and cloud sync (public). */
+  SUPABASE_URL?: string;
+  /** Supabase anon key (public; row-level security protects the data). */
+  SUPABASE_ANON_KEY?: string;
 }
 
 /** ₹299 in paise. The server is the only source of truth for the price. */
