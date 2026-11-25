@@ -1,7 +1,7 @@
-import type { Resume } from './resume';
-import { resumeHTML } from './render';
-import { esc } from './text';
-import { fontFaces } from './fonts';
+import type { Resume } from './resume.js';
+import { resumeHTML } from './render.js';
+import { esc } from './text.js';
+import { fontFaces } from './fonts.js';
 
 /**
  * A complete standalone HTML document for one resume, used for PDF rendering.

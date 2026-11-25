@@ -10,12 +10,17 @@ ATS-friendly resume builder for India. Build and preview for free; download a te
 - **Copy plain text** for pasting into job-portal forms.
 - **Autosave** of the draft in the browser.
 - **₹299 checkout** with Razorpay (UPI, cards, netbanking, wallets). One payment unlocks unlimited downloads of one resume.
-- **Server-rendered PDF** with headless Chrome (Cloudflare Browser Rendering): real, selectable text with embedded TrueType fonts, identical to the preview.
+- **Server-rendered PDF** with headless Chrome: real, selectable text with embedded TrueType fonts, identical to the preview.
 - **Demo mode**: with no Razorpay keys configured, checkout simulates a payment and downloads through the browser's Save as PDF.
 
 ## Stack
 
-React + Vite + TypeScript, hosted as static files on Cloudflare Pages. The API runs as Cloudflare Pages Functions in `functions/api/`. Accounts and cloud-saved resumes (Supabase) come later.
+React + Vite + TypeScript. Hosted on **Vercel**: the app is static files, and the API is Vercel Functions in `api/`.
+
+- `server/` holds the platform-neutral API handlers (Web `Request` in, `Response` out).
+- `api/` is the thin Vercel layer; `api/pdf.ts` runs headless Chromium via `@sparticuz/chromium` + `puppeteer-core`.
+- `functions/` is the same thin layer for Cloudflare Pages (PDF via Cloudflare Browser Rendering), kept so the app can move there later.
+- Accounts and cloud-saved resumes come after launch.
 
 ## How payment works
 
@@ -54,19 +59,33 @@ The privacy policy describes what the code does today (resume kept in the browse
 ```sh
 npm install
 npm run dev        # UI only, http://localhost:5173 (demo checkout)
-npm run dev:full   # UI + API via wrangler, http://localhost:8788
+npm run dev:full   # UI + API via `vercel dev` (needs a Vercel login)
 npm test           # unit tests (renderer, ATS check, payment endpoints)
 npm run build      # type check + production build into dist/
 ```
 
-For `dev:full` with Razorpay test keys, copy `.dev.vars.example` to `.dev.vars` and fill it in.
+For local API runs, set the three variables in `.env.local` (Vercel) or `.dev.vars` (Cloudflare); see `.dev.vars.example`. To render PDFs locally, set `CHROME_PATH` to an installed Chrome.
 
-## Deploy (Cloudflare Pages, free tier)
+## Deploy on Vercel
 
-1. In the Cloudflare dashboard: Workers & Pages → Create → Pages → Connect to Git → pick this repository.
-2. Framework preset: **Vite**. Build command: `npm run build`. Output directory: `dist`.
-3. Settings → Variables and Secrets (encrypted): `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (start with Razorpay **test** keys), and `UNLOCK_SECRET` (a long random string, e.g. `openssl rand -hex 32`). Without them the site runs in demo mode.
-4. Settings → Bindings → add **Browser Rendering** named `BROWSER` (also declared in `wrangler.toml`). Without it, paid downloads fall back to the browser's Save as PDF.
-5. Every push to `main` deploys to production; every pull request gets its own preview URL.
+1. vercel.com → Add New → Project → import this GitHub repository. Vercel reads `vercel.json` (Vite build, output `dist`); no other settings needed.
+2. Project → Settings → Environment Variables, for Production and Preview:
+   - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`: start with Razorpay **test** keys.
+   - `UNLOCK_SECRET`: a long random string, e.g. `openssl rand -hex 32`.
+   Without them the site runs in demo mode (nothing charged). Redeploy after adding them.
+3. Every push to `main` deploys to production; every pull request gets a preview URL.
+4. Settings → Domains to add your own domain.
 
-Changing `UNLOCK_SECRET` invalidates saved unlocks; customers can restore with their order id.
+Notes:
+- Vercel's free Hobby plan is for **non-commercial** use only. Once you take real payments, Vercel's terms require the Pro plan (about $20 a month), or move to Cloudflare Pages below, whose free plan allows commercial use.
+- `api/pdf.ts` gets 1 GB memory and 30 s (see `vercel.json`); a PDF typically takes 1 to 3 s, longer on a cold start.
+- Fonts in `public/fonts` are served with CORS headers because the PDF renderer loads them from a page with no origin.
+- Changing `UNLOCK_SECRET` invalidates saved unlocks; customers can restore with their order id.
+
+## Alternative: Cloudflare Pages
+
+1. Workers & Pages → Create → Pages → Connect to Git → this repository. Preset **Vite**, build `npm run build`, output `dist`.
+2. Settings → Variables and Secrets: the same three variables as above.
+3. Settings → Bindings → **Browser Rendering** named `BROWSER` (declared in `wrangler.toml`).
+
+Local run of the Cloudflare setup: `npm run dev:cloudflare`.

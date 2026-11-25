@@ -1,4 +1,4 @@
-import type { Env } from './env';
+import type { Env } from './env.js';
 
 const API = 'https://api.razorpay.com/v1';
 

@@ -1,10 +1,4 @@
-import { paymentsConfigured, json, PRICE_PAISE, type Env } from '../_lib/env';
+import { handleConfig } from '../../server/handlers.js';
+import type { CfEnv } from '../_env.js';
 
-/** Public config for the web app: whether payments and server PDFs are available. */
-export const onRequestGet: PagesFunction<Env> = ({ env }) =>
-  json({
-    payments: paymentsConfigured(env),
-    testMode: !!env.RAZORPAY_KEY_ID?.startsWith('rzp_test_'),
-    amount: PRICE_PAISE,
-    serverPdf: !!env.BROWSER,
-  });
+export const onRequestGet: PagesFunction<CfEnv> = ({ env }) => handleConfig(env, !!env.BROWSER);

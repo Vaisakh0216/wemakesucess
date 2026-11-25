@@ -1,5 +1,5 @@
-import type { Resume } from './resume';
-import { csv, lines } from './text';
+import type { Resume } from './resume.js';
+import { csv, lines } from './text.js';
 
 export interface AtsCheck {
   ok: boolean;
