@@ -1,5 +1,5 @@
-import type { Resume } from './resume';
-import { csv, esc, lines } from './text';
+import type { Resume } from './resume.js';
+import { csv, esc, lines } from './text.js';
 
 /**
  * Render a resume to semantic HTML. Every template shares this markup and differs

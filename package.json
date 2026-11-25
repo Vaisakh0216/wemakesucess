@@ -7,17 +7,21 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "dev:full": "vite build && npx wrangler@4 pages dev dist",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p functions",
+    "dev:full": "npx vercel@latest dev",
+    "dev:cloudflare": "vite build && npx wrangler@4 pages dev dist",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p api && tsc --noEmit -p functions",
     "test": "vitest run"
   },
   "dependencies": {
     "@cloudflare/puppeteer": "^1.4.0",
+    "@sparticuz/chromium": "^158.0.0",
+    "puppeteer-core": "^25.18.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
+    "@types/node": "^22.20.7",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.7.0",

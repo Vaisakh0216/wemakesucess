@@ -18,8 +18,8 @@ export interface Unlock {
   demo?: boolean;
 }
 
-const RID_KEY = 'wms.rid.v1';
-const UNLOCK_KEY = 'wms.unlock.v1';
+const UNLOCKS_KEY = 'wms.unlocks.v1';
+const LEGACY_UNLOCK_KEY = 'wms.unlock.v1';
 
 const get = (k: string) => {
   try {
@@ -36,25 +36,23 @@ const put = (k: string, v: string) => {
   }
 };
 
-/** Stable id for this browser's resume; payment unlocks are tied to it. */
-export function resumeId(): string {
-  let id = get(RID_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    put(RID_KEY, id);
+/** Unlocks for every document in this browser, keyed by resume id. */
+function allUnlocks(): Record<string, Unlock> {
+  try {
+    const map = JSON.parse(get(UNLOCKS_KEY) || '{}') as Record<string, Unlock>;
+    const legacy = JSON.parse(get(LEGACY_UNLOCK_KEY) || 'null') as Unlock | null;
+    if (legacy?.rid && !map[legacy.rid]) map[legacy.rid] = legacy;
+    return map;
+  } catch {
+    return {};
   }
-  return id;
 }
 
-export function loadUnlock(rid: string): Unlock | null {
-  try {
-    const u = JSON.parse(get(UNLOCK_KEY) || 'null') as Unlock | null;
-    return u && u.rid === rid ? u : null;
-  } catch {
-    return null;
-  }
+export const loadUnlock = (rid: string): Unlock | null => allUnlocks()[rid] ?? null;
+
+export function saveUnlock(u: Unlock) {
+  put(UNLOCKS_KEY, JSON.stringify({ ...allUnlocks(), [u.rid]: u }));
 }
-export const saveUnlock = (u: Unlock) => put(UNLOCK_KEY, JSON.stringify(u));
 
 export async function fetchConfig(): Promise<ServerConfig> {
   try {

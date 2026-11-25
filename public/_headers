@@ -1,0 +1,5 @@
+# Cloudflare Pages headers. The PDF renderer loads fonts from a page with no
+# origin, so font files need CORS. (Vercel: see vercel.json.)
+/fonts/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=31536000, immutable

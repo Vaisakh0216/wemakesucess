@@ -1,3 +1,4 @@
+/** Server settings. Read from process.env on Vercel, from bindings on Cloudflare. */
 export interface Env {
   /** Razorpay key id (public). Test keys start with rzp_test_. */
   RAZORPAY_KEY_ID?: string;
@@ -5,10 +6,6 @@ export interface Env {
   RAZORPAY_KEY_SECRET?: string;
   /** Random secret (32+ chars) used to sign unlock tokens. */
   UNLOCK_SECRET?: string;
-  /** Cloudflare Browser Rendering binding, for server-side PDFs. */
-  BROWSER?: Fetcher;
-  /** Static assets binding provided by Pages. */
-  ASSETS: Fetcher;
 }
 
 /** ₹299 in paise. The server is the only source of truth for the price. */

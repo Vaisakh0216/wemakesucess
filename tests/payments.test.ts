@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { hmacHex, signUnlock, verifyRazorpaySignature, verifyUnlock } from '../functions/_lib/crypto';
-import { onRequestPost as order } from '../functions/api/order';
-import { onRequestPost as verify } from '../functions/api/verify';
-import { onRequestPost as restore } from '../functions/api/restore';
-import { onRequestGet as config } from '../functions/api/config';
+import { hmacHex, signUnlock, verifyRazorpaySignature, verifyUnlock } from '../server/crypto';
+import { handleConfig, handleOrder, handlePdf, handleRestore, handleVerify } from '../server/handlers';
 
-const env = { RAZORPAY_KEY_ID: 'rzp_test_abc', RAZORPAY_KEY_SECRET: 'sek', UNLOCK_SECRET: 'unlock-secret', ASSETS: {} } as any;
+const order = (c: { request: Request; env: any }) => handleOrder(c.request, c.env);
+const verify = (c: { request: Request; env: any }) => handleVerify(c.request, c.env);
+const restore = (c: { request: Request; env: any }) => handleRestore(c.request, c.env);
+const config = (c: { env: any }) => handleConfig(c.env, false);
+
+const env = { RAZORPAY_KEY_ID: 'rzp_test_abc', RAZORPAY_KEY_SECRET: 'sek', UNLOCK_SECRET: 'unlock-secret', } as any;
 const RID = '3f2b8c1e-5d4a-4b6f-9e2d-1a2b3c4d5e6f';
 const ctx = (body: unknown, e = env) =>
   ({ request: new Request('https://x/api', { method: 'POST', body: JSON.stringify(body) }), env: e }) as any;
@@ -52,7 +54,7 @@ describe('unlock tokens', () => {
 
 describe('/api/config', () => {
   it('reports demo mode without keys', async () => {
-    const r = await (await config({ env: { ASSETS: {} } } as any)).json();
+    const r = await (await config({ env: {} } as any)).json();
     expect(r).toMatchObject({ payments: false, serverPdf: false });
   });
   it('reports test mode with test keys and never leaks the secret', async () => {
@@ -73,7 +75,7 @@ describe('/api/order', () => {
   });
   it('rejects bad ids and unconfigured servers', async () => {
     expect((await order(ctx({ rid: 'nope' }))).status).toBe(400);
-    expect((await order(ctx({ rid: RID }, { ASSETS: {} }))).status).toBe(503);
+    expect((await order(ctx({ rid: RID }, {}))).status).toBe(503);
   });
 });
 
@@ -112,5 +114,26 @@ describe('/api/restore', () => {
     expect((await restore(ctx({ rid: RID, orderId: 'order_ABC123456' }))).status).toBe(404);
     mockRazorpay(rzOrder({ notes: { rid: '00000000-0000-4000-8000-000000000000' } }));
     expect((await restore(ctx({ rid: RID, orderId: 'order_ABC123456' }))).status).toBe(403);
+  });
+});
+
+describe('/api/pdf', () => {
+  const resume = { contact: { name: 'Asha Rao' } };
+  const render = vi.fn(async (html: string) => new TextEncoder().encode(html));
+  const pdfCtx = (body: unknown) => new Request('https://site.example/api/pdf', { method: 'POST', body: JSON.stringify(body) });
+  it('renders only with a valid token for the same resume', async () => {
+    const token = await signUnlock({ rid: RID, oid: 'order_1', iat: 1 }, 'unlock-secret');
+    const ok = await handlePdf(pdfCtx({ rid: RID, token, resume }), env, render);
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('content-disposition')).toContain('Asha_Rao_Resume.pdf');
+    const html = await ok.text();
+    expect(html).toContain('https://site.example/fonts/');
+    expect(html).toContain('Asha Rao');
+    const other = await handlePdf(pdfCtx({ rid: '00000000-0000-4000-8000-000000000000', token, resume }), env, render);
+    expect(other.status).toBe(402);
+    expect((await handlePdf(pdfCtx({ rid: RID, token: 'x.y', resume }), env, render)).status).toBe(402);
+  });
+  it('reports when no renderer is available', async () => {
+    expect((await handlePdf(pdfCtx({}), env, null)).status).toBe(501);
   });
 });
