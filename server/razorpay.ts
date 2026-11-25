@@ -34,3 +34,7 @@ export async function fetchOrder(env: Env, orderId: string): Promise<RazorpayOrd
 }
 
 export const orderRid = (o: RazorpayOrder) => (Array.isArray(o.notes) ? undefined : o.notes?.rid);
+
+/** Which product an order was for, from its notes. Orders made before cover letters existed are resumes. */
+export const orderProduct = (o: RazorpayOrder): 'resume' | 'cover' =>
+  !Array.isArray(o.notes) && o.notes?.product === 'pdf_unlock_one_cover_letter' ? 'cover' : 'resume';

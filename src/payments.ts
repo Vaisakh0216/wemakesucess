@@ -1,12 +1,15 @@
 import type { Resume } from './shared/resume';
 import { fileName } from './shared/render';
-import { printResume } from './download';
+import { printCover, printResume } from './download';
+import { coverFileName, type CoverLetter } from './shared/cover';
 
 export interface ServerConfig {
   payments: boolean;
   testMode: boolean;
   amount: number;
   serverPdf: boolean;
+  /** Cover letter price in paise. */
+  coverAmount?: number;
   /** "Generate with AI" is available (needs sign-in). */
   ai?: boolean;
   /** Supabase settings when sign-in is switched on. */
@@ -130,9 +133,13 @@ declare global {
  * verifies the signature and returns an unlock token.
  * Resolves null if the user closes the checkout.
  */
-export async function payWithRazorpay(rid: string, prefill: { name?: string; email?: string; contact?: string }): Promise<Unlock | null> {
+export async function payWithRazorpay(
+  rid: string,
+  prefill: { name?: string; email?: string; contact?: string },
+  product: 'resume' | 'cover' = 'resume',
+): Promise<Unlock | null> {
   const [order] = await Promise.all([
-    post<{ orderId: string; amount: number; currency: string; keyId: string }>('/api/order', { rid }),
+    post<{ orderId: string; amount: number; currency: string; keyId: string }>('/api/order', { rid, product }),
     loadRazorpay(),
   ]);
   const result = await new Promise<RazorpaySuccess | null>((resolve, reject) => {
@@ -142,7 +149,7 @@ export async function payWithRazorpay(rid: string, prefill: { name?: string; ema
       amount: order.amount,
       currency: order.currency,
       name: 'wemakesucess',
-      description: 'PDF download: one resume, unlimited downloads',
+      description: product === 'cover' ? 'PDF download: one cover letter, unlimited downloads' : 'PDF download: one resume, unlimited downloads',
       prefill,
       theme: { color: '#2747d0' },
       handler: (r: RazorpaySuccess) => resolve(r),
@@ -171,27 +178,32 @@ export async function restorePurchase(rid: string, orderId: string): Promise<Unl
  * or Browser Rendering not set up yet) falls back to the browser's Save as PDF.
  * Returns 'file' or 'print' so the UI can explain what happens.
  */
-export async function downloadPdf(r: Resume, unlock: Unlock, cfg: ServerConfig): Promise<'file' | 'print'> {
+export type Printable = { kind: 'resume'; resume: Resume } | { kind: 'cover'; cover: CoverLetter };
+
+export async function downloadPdf(doc: Resume | Printable, unlock: Unlock, cfg: ServerConfig): Promise<'file' | 'print'> {
+  const d: Printable = 'kind' in doc ? doc : { kind: 'resume', resume: doc };
   if (cfg.payments && !unlock.token) throw new Error('Please complete the payment to download.');
+  const name = d.kind === 'cover' ? coverFileName(d.cover) : fileName(d.resume);
   if (unlock.token && cfg.serverPdf) {
     const res = await fetch('/api/pdf', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ rid: unlock.rid, token: unlock.token, resume: r }),
+      body: JSON.stringify({ rid: unlock.rid, token: unlock.token, ...d }),
     });
     if (res.ok) {
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName(r);
+      a.download = name;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       return 'file';
     }
-    if (res.status === 402) throw new Error('This purchase could not be verified for this resume.');
+    if (res.status === 402) throw new Error('This purchase could not be verified for this document.');
   }
-  printResume(r);
+  if (d.kind === 'cover') printCover(d.cover);
+  else printResume(d.resume);
   return 'print';
 }

@@ -161,3 +161,8 @@ a{color:inherit}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 .start-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
 .import{display:flex;flex-direction:column;gap:6px}
+.pick-list{display:flex;flex-direction:column;gap:8px}
+.pick-list .btn{justify-content:space-between}
+.pick-list small{color:var(--muted);font-weight:500}
+.rthumb .sheet{text-align:left}
+.dash-bar .seg button{white-space:nowrap}

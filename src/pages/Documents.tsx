@@ -5,7 +5,7 @@ import { Modal } from '../components/Modal';
 import { ResumeThumb } from '../components/ResumeThumb';
 import { ImportButton } from '../components/ImportButton';
 import { TemplateGallery } from '../components/TemplateGallery';
-import { blankResume, createDoc, deleteDoc, duplicateDoc, listDocs, saveDoc, subscribeDocs, type Doc } from '../docs';
+import { blankResume, createCover, createDoc, deleteDoc, duplicateDoc, listDocs, saveDoc, subscribeDocs, type Doc, type ResumeDoc } from '../docs';
 import { loadUnlock } from '../payments';
 import { Link, navigate } from '../router';
 import { TEMPLATES } from '../shared/resume';
@@ -20,6 +20,8 @@ export function Documents() {
   const [sort, setSort] = useState<Sort>('edited');
   const [tag, setTag] = useState('All');
   const [adding, setAdding] = useState(false);
+  const [kind, setKind] = useState<Doc['kind']>(() => (new URLSearchParams(location.search).get('tab') === 'cover' ? 'cover' : 'resume'));
+  const [coverFrom, setCoverFrom] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Doc | null>(null);
 
   useEffect(() => {
@@ -28,11 +30,11 @@ export function Documents() {
 
   const tags = useMemo(() => ['All', ...new Set(docs.flatMap((d) => d.tags))], [docs]);
   const shown = useMemo(() => {
-    const list = docs.filter((d) => tag === 'All' || d.tags.includes(tag));
+    const list = docs.filter((d) => d.kind === kind && (tag === 'All' || d.tags.includes(tag)));
     return [...list].sort((a, b) =>
       sort === 'name' ? a.title.localeCompare(b.title) : (sort === 'created' ? b.createdAt.localeCompare(a.createdAt) : b.updatedAt.localeCompare(a.updatedAt)),
     );
-  }, [docs, sort, tag]);
+  }, [docs, sort, tag, kind]);
 
   return (
     <div className="dash">
@@ -45,8 +47,8 @@ export function Documents() {
         </Link>
         <h1>My Documents</h1>
         <span className="spacer" />
-        <button className="btn primary" type="button" onClick={() => setAdding(true)}>
-          + New resume
+        <button className="btn primary" type="button" onClick={() => (kind === 'cover' ? setCoverFrom(true) : setAdding(true))}>
+          {kind === 'cover' ? '+ New cover letter' : '+ New resume'}
         </button>
         <AccountButton />
       </header>
@@ -54,11 +56,11 @@ export function Documents() {
 
       <div className="dash-bar">
         <div className="seg" role="group" aria-label="Document type">
-          <button type="button" aria-pressed="true">
-            Resumes <span className="count">{docs.length}</span>
+          <button type="button" aria-pressed={kind === 'resume'} onClick={() => setKind('resume')}>
+            Resumes <span className="count">{docs.filter((d) => d.kind === 'resume').length}</span>
           </button>
-          <button type="button" aria-pressed="false" disabled title="Cover letters are coming soon">
-            Cover letters
+          <button type="button" aria-pressed={kind === 'cover'} onClick={() => setKind('cover')}>
+            Cover letters <span className="count">{docs.filter((d) => d.kind === 'cover').length}</span>
           </button>
         </div>
         <span className="spacer" />
@@ -81,15 +83,26 @@ export function Documents() {
       </div>
 
       <main className="docs">
-        <button type="button" className="doc-card new" onClick={() => setAdding(true)}>
-          <span className="plus">+</span>
-          <b>New resume</b>
-          <span>Start from a template or a blank page</span>
-        </button>
+        {kind === 'cover' ? (
+          <button type="button" className="doc-card new" onClick={() => setCoverFrom(true)}>
+            <span className="plus">+</span>
+            <b>New cover letter</b>
+            <span>Matches your resume’s design and details</span>
+          </button>
+        ) : (
+          <button type="button" className="doc-card new" onClick={() => setAdding(true)}>
+            <span className="plus">+</span>
+            <b>New resume</b>
+            <span>Start from a template or a blank page</span>
+          </button>
+        )}
         {shown.map((d) => (
           <DocCard key={d.id} doc={d} onDelete={() => setConfirmDelete(d)} />
         ))}
-        {!docs.length && (
+        {!shown.length && kind === 'cover' && (
+          <p className="empty">Write a cover letter that matches your resume. Start one and AI can draft it from the job description.</p>
+        )}
+        {!docs.length && kind === 'resume' && (
           <p className="empty">
             Your resumes are saved here, in this browser. Create your first one to get started.
           </p>
@@ -120,6 +133,35 @@ export function Documents() {
               <ImportButton />
             </div>
             <TemplateGallery />
+          </div>
+        </Modal>
+      )}
+
+      {coverFrom && (
+        <Modal onClose={() => setCoverFrom(false)} labelledBy="newcover">
+          <div className="mh">
+            <div style={{ flex: 1 }}>
+              <h3 id="newcover">New cover letter</h3>
+              <p>Pick the resume it goes with. The letter copies its design and contact details.</p>
+            </div>
+            <button className="icon-btn" type="button" aria-label="Close" onClick={() => setCoverFrom(false)}>
+              ✕
+            </button>
+          </div>
+          <div className="mb">
+            <div className="pick-list">
+              {docs
+                .filter((d): d is ResumeDoc => d.kind === 'resume')
+                .map((d) => (
+                  <button key={d.id} type="button" className="btn" onClick={() => navigate(`/cover/${createCover({ from: d }).id}`)}>
+                    {d.title}
+                    <small>{d.data.contact.title}</small>
+                  </button>
+                ))}
+              <button type="button" className="btn ghost" onClick={() => navigate(`/cover/${createCover().id}`)}>
+                Start without a resume
+              </button>
+            </div>
           </div>
         </Modal>
       )}
@@ -160,12 +202,12 @@ function DocCard({ doc, onDelete }: { doc: Doc; onDelete: () => void }) {
   const [tagInput, setTagInput] = useState<string | null>(null);
   const paid = !!loadUnlock(doc.id);
   const tpl = TEMPLATES.find((t) => t.id === doc.data.template);
-  const open = () => navigate(`/edit/${doc.id}`);
+  const open = () => navigate(doc.kind === 'cover' ? `/cover/${doc.id}` : `/edit/${doc.id}`);
 
   return (
     <article className="doc-card">
       <button type="button" className="doc-img" onClick={open} aria-label={`Open ${doc.title}`}>
-        <ResumeThumb resume={doc.data} max={240} />
+        {doc.kind === 'cover' ? <ResumeThumb cover={doc.data} max={240} /> : <ResumeThumb resume={doc.data} max={240} />}
       </button>
       <div className="doc-tags">
         {doc.tags.map((t) => (
@@ -248,6 +290,11 @@ function DocCard({ doc, onDelete }: { doc: Doc; onDelete: () => void }) {
               >
                 Duplicate
               </button>
+              {doc.kind === 'resume' && (
+                <button role="menuitem" type="button" onClick={() => navigate(`/cover/${createCover({ from: doc }).id}`)}>
+                  Write a matching cover letter
+                </button>
+              )}
               <button role="menuitem" type="button" className="danger" onClick={() => (onDelete(), setMenu(false))}>
                 Delete
               </button>

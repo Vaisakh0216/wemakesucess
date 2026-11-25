@@ -20,6 +20,11 @@ export interface Env {
 
 /** ₹299 in paise. The server is the only source of truth for the price. */
 export const PRICE_PAISE = 29900;
+
+/** What a payment unlocks, and its price in paise. */
+export type Product = 'resume' | 'cover';
+export const PRICES: Record<Product, number> = { resume: PRICE_PAISE, cover: 9900 };
+export const product = (v: unknown): Product => (v === 'cover' ? 'cover' : 'resume');
 export const CURRENCY = 'INR';
 
 export const paymentsConfigured = (env: Env) =>

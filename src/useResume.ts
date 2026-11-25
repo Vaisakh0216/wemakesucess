@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDoc, saveDoc } from './docs';
+import { getCover, getResume, saveDoc } from './docs';
+import { coverFromResume, type CoverLetter } from './shared/cover';
 import { cloneResume, SAMPLE, type Resume } from './shared/resume';
 
 const HISTORY_LIMIT = 100;
@@ -9,14 +10,27 @@ const HISTORY_LIMIT = 100;
  * undo/redo history (typing in one field within a second counts as one step).
  */
 export function useResume(docId: string) {
-  const [resume, setResumeState] = useState<Resume>(() => getDoc(docId)?.data ?? cloneResume(SAMPLE));
+  const { value, ...rest } = useEditable<Resume>(docId, () => getResume(docId)?.data ?? cloneResume(SAMPLE));
+  return { resume: value, ...rest };
+}
+
+export function useCover(docId: string) {
+  const { value, ...rest } = useEditable<CoverLetter>(docId, () => getCover(docId)?.data ?? coverFromResume(null));
+  return { cover: value, ...rest };
+}
+
+const clone = <T,>(v: T): T => structuredClone(v);
+
+/** Undoable, autosaved editing state for one document's data. */
+function useEditable<T extends Resume | CoverLetter>(docId: string, load: () => T) {
+  const [resume, setResumeState] = useState<T>(load);
   const current = useRef(resume);
-  const setResume = (r: Resume) => {
+  const setResume = (r: T) => {
     current.current = r;
     setResumeState(r);
   };
-  const past = useRef<Resume[]>([]);
-  const future = useRef<Resume[]>([]);
+  const past = useRef<T[]>([]);
+  const future = useRef<T[]>([]);
   const lastKey = useRef<{ key: string; at: number } | null>(null);
   const [, bump] = useState(0);
 
@@ -26,7 +40,7 @@ export function useResume(docId: string) {
 
   // History lives in refs and is updated outside state updaters, so StrictMode's
   // double-invoked updaters cannot record a step twice.
-  const commit = useCallback((next: (prev: Resume) => Resume, key?: string) => {
+  const commit = useCallback((next: (prev: T) => T, key?: string) => {
     const prev = current.current;
     const now = Date.now();
     const coalesce = key && lastKey.current?.key === key && now - lastKey.current.at < 1000;
@@ -45,7 +59,7 @@ export function useResume(docId: string) {
   const setPath = useCallback(
     (path: string, value: unknown) =>
       commit((prev) => {
-        const next = cloneResume(prev);
+        const next = clone(prev);
         const keys = path.split('.');
         let o: any = next;
         for (const k of keys.slice(0, -1)) o = o[k];
@@ -56,16 +70,16 @@ export function useResume(docId: string) {
   );
 
   const update = useCallback(
-    (fn: (draft: Resume) => void) =>
+    (fn: (draft: T) => void) =>
       commit((prev) => {
-        const next = cloneResume(prev);
+        const next = clone(prev);
         fn(next);
         return next;
       }),
     [commit],
   );
 
-  const replace = useCallback((r: Resume) => commit(() => cloneResume(r)), [commit]);
+  const replace = useCallback((r: T) => commit(() => clone(r)), [commit]);
 
   const undo = useCallback(() => {
     const prev = past.current.pop();
@@ -86,7 +100,7 @@ export function useResume(docId: string) {
   }, []);
 
   return {
-    resume,
+    value: resume,
     setPath,
     update,
     replace,

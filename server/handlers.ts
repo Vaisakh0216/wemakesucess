@@ -3,13 +3,14 @@ import { aiConfigured } from './ai.js';
  * Platform-neutral API handlers (Web Request in, Response out).
  * Thin adapters in api/ (Vercel) and functions/api/ (Cloudflare Pages) call these.
  */
-import { resumeDocument } from '../src/shared/document.js';
+import { coverFileName, normalizeCover } from '../src/shared/cover.js';
+import { coverDocument, resumeDocument } from '../src/shared/document.js';
 import { fileName } from '../src/shared/render.js';
 import { normalizeResume } from '../src/shared/resume.js';
 import { RESUME_CSS } from '../src/shared/resumeCss.js';
 import { signUnlock, verifyRazorpaySignature, verifyUnlock } from './crypto.js';
-import { CURRENCY, fail, json, paymentsConfigured, PRICE_PAISE, readJson, RID, type Env } from './env.js';
-import { createOrder, fetchOrder, orderRid } from './razorpay.js';
+import { CURRENCY, fail, json, paymentsConfigured, PRICE_PAISE, PRICES, product, readJson, RID, type Env, type Product } from './env.js';
+import { createOrder, fetchOrder, orderProduct, orderRid } from './razorpay.js';
 
 /** Turns a full HTML document into PDF bytes with headless Chrome. */
 export type PdfRenderer = (html: string) => Promise<Uint8Array>;
@@ -36,27 +37,34 @@ export function handleConfig(env: Env, serverPdf: boolean): Response {
     payments: paymentsConfigured(env),
     testMode: !!env.RAZORPAY_KEY_ID?.startsWith('rzp_test_'),
     amount: PRICE_PAISE,
+    coverAmount: PRICES.cover,
     serverPdf,
     ai: aiConfigured(env),
     auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? { url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY } : null,
   });
 }
 
+const NOTE: Record<Product, string> = { resume: 'pdf_unlock_one_resume', cover: 'pdf_unlock_one_cover_letter' };
+const tokenFor = (rid: string, oid: string, p: Product) =>
+  ({ rid, oid, iat: now(), ...(p === 'cover' ? { p: 'cover' as const } : {}) });
+
 /**
- * Create a ₹299 Razorpay order for one resume. The resume id goes into the order
- * notes, so the order itself is the purchase record.
+ * Create a Razorpay order for one document: ₹299 for a resume, ₹99 for a cover
+ * letter. The document id and product go into the order notes, so the order
+ * itself is the purchase record.
  */
 export async function handleOrder(request: Request, env: Env): Promise<Response> {
   if (!paymentsConfigured(env)) return fail(503, 'payments_not_configured');
   const body = await readJson(request, 2_000);
   const rid = body?.rid;
   if (typeof rid !== 'string' || !RID.test(rid)) return fail(400, 'bad_resume_id');
+  const p = product(body?.product);
   try {
     const order = await createOrder(env, {
-      amount: PRICE_PAISE,
+      amount: PRICES[p],
       currency: CURRENCY,
-      receipt: `r_${rid.slice(0, 8)}_${Date.now().toString(36)}`,
-      notes: { rid, product: 'pdf_unlock_one_resume' },
+      receipt: `${p === 'cover' ? 'c' : 'r'}_${rid.slice(0, 8)}_${Date.now().toString(36)}`,
+      notes: { rid, product: NOTE[p] },
     });
     return json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: env.RAZORPAY_KEY_ID });
   } catch (e) {
@@ -85,9 +93,9 @@ export async function handleVerify(request: Request, env: Env): Promise<Response
   // The signature proves Razorpay issued this payment for this order; also check
   // the order was created for this resume at the full price.
   const order = await fetchOrder(env, orderId).catch(() => null);
-  if (!order || orderRid(order) !== rid || order.amount !== PRICE_PAISE) return fail(400, 'order_mismatch');
+  if (!order || orderRid(order) !== rid || order.amount !== PRICES[orderProduct(order)]) return fail(400, 'order_mismatch');
 
-  const token = await signUnlock({ rid, oid: orderId, iat: now() }, env.UNLOCK_SECRET!);
+  const token = await signUnlock(tokenFor(rid, orderId, orderProduct(order)), env.UNLOCK_SECRET!);
   return json({ token, orderId });
 }
 
@@ -103,10 +111,10 @@ export async function handleRestore(request: Request, env: Env): Promise<Respons
   if (!RID.test(rid) || !/^order_[A-Za-z0-9]{6,40}$/.test(orderId)) return fail(400, 'bad_request');
 
   const order = await fetchOrder(env, orderId).catch(() => null);
-  if (!order || order.status !== 'paid' || order.amount_paid < PRICE_PAISE) return fail(404, 'not_paid');
+  if (!order || order.status !== 'paid' || order.amount_paid < PRICES[orderProduct(order)]) return fail(404, 'not_paid');
   if (orderRid(order) !== rid) return fail(403, 'different_resume');
 
-  const token = await signUnlock({ rid, oid: orderId, iat: now() }, env.UNLOCK_SECRET!);
+  const token = await signUnlock(tokenFor(rid, orderId, orderProduct(order)), env.UNLOCK_SECRET!);
   return json({ token, orderId });
 }
 
@@ -117,16 +125,29 @@ export async function handleRestore(request: Request, env: Env): Promise<Respons
 export async function handlePdf(request: Request, env: Env, render: PdfRenderer | null): Promise<Response> {
   if (!paymentsConfigured(env)) return fail(503, 'payments_not_configured');
   if (!render) return fail(501, 'server_pdf_unavailable');
-  const b = await readJson(request, 64_000);
+  // Room for a resume photo (up to ~200 KB as base64).
+  const b = await readJson(request, 400_000);
   const unlock = await verifyUnlock(b?.token, env.UNLOCK_SECRET!);
   if (!unlock || unlock.rid !== b?.rid) return fail(402, 'payment_required');
+  // A ₹99 cover letter token cannot download a resume, and the other way round.
+  const kind = b?.kind === 'cover' ? 'cover' : 'resume';
+  if ((unlock.p ?? 'resume') !== kind) return fail(402, 'payment_required');
 
-  const resume = normalizeResume(b?.resume);
-  const pdf = await render(resumeDocument(resume, RESUME_CSS, new URL(request.url).origin));
+  const origin = new URL(request.url).origin;
+  let html: string;
+  let name: string;
+  if (kind === 'cover') {
+    const c = normalizeCover(b?.cover);
+    [html, name] = [coverDocument(c, RESUME_CSS, origin), coverFileName(c)];
+  } else {
+    const resume = normalizeResume(b?.resume);
+    [html, name] = [resumeDocument(resume, RESUME_CSS, origin), fileName(resume)];
+  }
+  const pdf = await render(html);
   return new Response(pdf, {
     headers: {
       'content-type': 'application/pdf',
-      'content-disposition': `attachment; filename="${fileName(resume)}"`,
+      'content-disposition': `attachment; filename="${name}"`,
       'cache-control': 'no-store',
     },
   });

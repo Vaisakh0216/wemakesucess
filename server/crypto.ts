@@ -30,6 +30,8 @@ export interface UnlockPayload {
   rid: string;
   oid: string;
   iat: number;
+  /** 'cover' for a cover letter purchase; absent for a resume (all tokens issued before cover letters). */
+  p?: 'cover';
 }
 
 const b64u = (s: string) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

@@ -1,4 +1,4 @@
-import type { Resume, SectionKey } from './resume.js';
+import type { Contact, Resume, SectionKey } from './resume.js';
 import { csv, esc, lines } from './text.js';
 
 /**
@@ -6,12 +6,19 @@ import { csv, esc, lines } from './text.js';
  * only in CSS (see resume.css), so ATS always see the same reading order:
  * name, headline, contact line, then each standard section heading and its content.
  */
-export function resumeHTML(r: Resume): string {
-  const c = r.contact;
+/** Name, headline and contact line: shared by resumes and cover letters. */
+export function headerHTML(c: Contact, photoUrl = ''): string {
   const contact = [c.email, c.phone, c.location, c.linkedin, c.website]
     .filter(Boolean)
     .map(esc)
     .join('<span class="sep">|</span>');
+  const photo = photoUrl ? `<img class="photo" src="${esc(photoUrl)}" alt="">` : '';
+  return `<header>${photo}<div class="hd"><h1>${esc(c.name) || 'Your Name'}</h1>${c.title ? `<p class="headline">${esc(c.title)}</p>` : ''}${
+    contact ? `<p class="contact">${contact}</p>` : ''
+  }</div></header>`;
+}
+
+export function resumeHTML(r: Resume): string {
   const sec = (key: SectionKey, title: string, body: string) =>
     body ? `<section data-sec="${key}"><h2>${esc(title)}</h2>${body}</section>` : '';
   const when = (a: string, b: string) => [a, b].filter(Boolean).map(esc).join(' – ');
@@ -68,12 +75,9 @@ export function resumeHTML(r: Resume): string {
   const L = r.layout;
   const sections = L.order.filter((k) => !L.hidden.includes(k)).map((k) => body[k]()).filter(Boolean).join('\n');
   const vars = `--rc:${esc(r.accent)};--fs:${L.fontScale};--sp:${L.spacing}`;
-  const photo = r.photo ? `<img class="photo" src="${esc(r.photo)}" alt="">` : '';
 
-  return `<article class="r t-${r.template} f-${r.font}${photo ? ' has-photo' : ''}" style="${vars}">
-<header>${photo}<div class="hd"><h1>${esc(c.name) || 'Your Name'}</h1>${c.title ? `<p class="headline">${esc(c.title)}</p>` : ''}${
-    contact ? `<p class="contact">${contact}</p>` : ''
-  }</div></header>
+  return `<article class="r t-${r.template} f-${r.font}${r.photo ? ' has-photo' : ''}" style="${vars}">
+${headerHTML(r.contact, r.photo)}
 ${sections}
 </article>`;
 }

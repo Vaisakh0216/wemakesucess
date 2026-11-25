@@ -7,7 +7,7 @@ import { fail, json, readJson, type Env } from './env.js';
  * limit counted in Supabase (see supabase/schema.sql, use_ai_credit).
  */
 
-export const AI_KINDS = ['summary', 'bullets', 'skills', 'improve'] as const;
+export const AI_KINDS = ['summary', 'bullets', 'skills', 'improve', 'cover'] as const;
 export type AiKind = (typeof AI_KINDS)[number];
 
 export const aiConfigured = (env: Env) => !!(env.ANTHROPIC_API_KEY && env.SUPABASE_URL && env.SUPABASE_ANON_KEY);
@@ -32,7 +32,9 @@ function brief(kind: AiKind, c: Record<string, string>): string {
     lines('Company', c.company) +
     lines('Recent roles', c.roles) +
     lines('Skills', c.skills) +
-    lines('Current text', c.text);
+    lines('Current text', c.text) +
+    lines('Background from their resume', c.background) +
+    lines('Job description', c.jd);
   switch (kind) {
     case 'summary':
       return `${about}\nWrite 3 different professional summaries for the top of this resume. Each is 2 to 4 sentences, 30 to 80 words, first person without "I" (e.g. "Backend engineer with..."), naming the target role and the strongest strengths. Vary the angle: one leads with experience, one with results, one with skills.`;
@@ -40,6 +42,8 @@ function brief(kind: AiKind, c: Record<string, string>): string {
       return `${about}\nWrite 6 achievement bullets for this job. Each starts with a strong past-tense action verb (present tense if the job is current), is one line of at most 25 words, and shows impact (what changed, for whom, by how much). Do not repeat any current bullet.`;
     case 'skills':
       return `${about}\nSuggest 12 skills for this resume's Skills section: concrete hard skills, tools and methods a recruiter would search for in this role, most important first, each 1 to 4 words. Leave out any skill already listed and soft skills like "teamwork".`;
+    case 'cover':
+      return `${about}\nWrite 2 different versions of the body of a cover letter for this application. Each is 3 or 4 short paragraphs separated by a blank line, 180 to 280 words in total, without the greeting, closing or signature. Open with the role and why this person fits, use specific results from their background that match the job description, and end with a confident, polite request for an interview. Formal but warm, no clichés like "I am writing to express my keen interest".`;
     case 'improve':
       return `${about}\nRewrite the current text so it reads stronger for an ATS and a recruiter, keeping every fact. If it is a list of bullets (one per line), return each improved bullet as a separate item in the same order. If it is a paragraph, return 1 item with the rewritten paragraph.`;
   }
@@ -75,7 +79,7 @@ export async function handleAi(request: Request, env: Env, client?: Pick<Anthrop
   if (!aiConfigured(env)) return fail(503, 'ai_not_configured');
   const token = request.headers.get('authorization')?.match(/^Bearer (.+)$/)?.[1];
   if (!token) return fail(401, 'sign_in_required');
-  const body = await readJson(request, 12_000);
+  const body = await readJson(request, 20_000);
   const kind = body?.kind as AiKind;
   if (!body || !AI_KINDS.includes(kind)) return fail(400, 'bad_request');
   const ctx = (body.context && typeof body.context === 'object' ? body.context : {}) as Record<string, unknown>;
@@ -86,6 +90,8 @@ export async function handleAi(request: Request, env: Env, client?: Pick<Anthrop
     roles: clip(ctx.roles, 400),
     skills: clip(ctx.skills, 600),
     text: clip(ctx.text, 3000),
+    background: clip(ctx.background, 2500),
+    jd: clip(ctx.jd, 4000),
   };
   if (kind === 'improve' && !c.text) return fail(400, 'nothing_to_improve');
   if (!c.title && !c.role && !c.text) return fail(400, 'add_a_job_title_first');
@@ -116,7 +122,7 @@ export async function handleAi(request: Request, env: Env, client?: Pick<Anthrop
     const parsed = JSON.parse(text) as { suggestions?: unknown };
     const suggestions = (Array.isArray(parsed.suggestions) ? parsed.suggestions : [])
       .filter((s): s is string => typeof s === 'string' && !!s.trim())
-      .map((s) => s.trim().replace(/^[-•*]\s*/, '').slice(0, 800))
+      .map((s) => s.trim().replace(/^[-•*]\s*/, '').slice(0, kind === 'cover' ? 4000 : 800))
       .slice(0, 15);
     if (!suggestions.length) return fail(502, 'ai_failed');
     return json({ suggestions, remaining: left });

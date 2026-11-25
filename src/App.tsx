@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { createDoc, getDoc } from './docs';
+import { createDoc, getCover, getResume } from './docs';
 import { Documents } from './pages/Documents';
+import { CoverEditorPage } from './pages/CoverEditorPage';
 import { EditorPage } from './pages/EditorPage';
 import { Landing, TemplatesPage } from './pages/Landing';
 import { LoginPage } from './pages/Login';
@@ -10,7 +11,7 @@ export default function App() {
   const path = usePath();
 
   useEffect(() => {
-    if (!path.startsWith('/edit/') && path !== '/app') document.title = 'wemakesucess · ATS resume builder';
+    if (!path.startsWith('/edit/') && !path.startsWith('/cover/') && path !== '/app') document.title = 'wemakesucess · ATS resume builder';
   }, [path]);
 
   if (path === '/') return <Landing />;
@@ -19,7 +20,9 @@ export default function App() {
   if (path === '/login') return <LoginPage />;
   if (path === '/new') return <Redirect to={() => `/edit/${createDoc().id}`} />;
   const m = path.match(/^\/edit\/([0-9a-f-]{36})$/i);
-  if (m) return getDoc(m[1]) ? <EditorPage key={m[1]} docId={m[1]} /> : <NotFound what="That resume is not in this browser’s documents." />;
+  if (m) return getResume(m[1]) ? <EditorPage key={m[1]} docId={m[1]} /> : <NotFound what="That resume is not in this browser’s documents." />;
+  const cv = path.match(/^\/cover\/([0-9a-f-]{36})$/i);
+  if (cv) return getCover(cv[1]) ? <CoverEditorPage key={cv[1]} docId={cv[1]} /> : <NotFound what="That cover letter is not in this browser’s documents." />;
   return <NotFound />;
 }
 

@@ -128,6 +128,7 @@ export async function signOut() {
 
 interface Row {
   id: string;
+  kind: 'resume' | 'cover';
   title: string;
   tags: string[];
   data: unknown;
@@ -150,6 +151,7 @@ function paidUnlock(id: string): Unlock | null {
 const toRow = (d: Doc, userId: string) => ({
   user_id: userId,
   id: d.id,
+  kind: d.kind,
   title: d.title,
   tags: d.tags,
   data: d.data,
@@ -171,13 +173,13 @@ export function syncNow(): Promise<boolean> {
     try {
       const { data, error } = await sb
         .from('documents')
-        .select('id,title,tags,data,unlock,created_at,updated_at,deleted_at')
+        .select('id,kind,title,tags,data,unlock,created_at,updated_at,deleted_at')
         .returns<Row[]>();
       if (error) throw error;
       const rows = data ?? [];
       const live = rows.filter((r) => !r.deleted_at);
       mergeDocs(
-        live.map((r) => ({ id: r.id, title: r.title, tags: r.tags, data: r.data, createdAt: r.created_at, updatedAt: r.updated_at })),
+        live.map((r) => ({ id: r.id, kind: r.kind, title: r.title, tags: r.tags, data: r.data, createdAt: r.created_at, updatedAt: r.updated_at })),
         rows.filter((r) => r.deleted_at).map((r) => r.id),
       );
       for (const r of live) if (r.unlock?.token && !paidUnlock(r.id)) saveUnlock({ ...r.unlock, rid: r.id });

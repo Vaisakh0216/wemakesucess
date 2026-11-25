@@ -4,6 +4,7 @@
 create table if not exists public.documents (
   user_id    uuid        not null default auth.uid() references auth.users (id) on delete cascade,
   id         uuid        not null,
+  kind       text        not null default 'resume' check (kind in ('resume', 'cover')),
   title      text        not null default 'My Resume' check (char_length(title) <= 120),
   tags       text[]      not null default '{}' check (cardinality(tags) <= 10),
   data       jsonb       not null,
@@ -16,6 +17,9 @@ create table if not exists public.documents (
   primary key (user_id, id),
   constraint documents_data_size check (pg_column_size(data) < 400000)
 );
+
+-- For projects created before cover letters existed.
+alter table public.documents add column if not exists kind text not null default 'resume' check (kind in ('resume', 'cover'));
 
 alter table public.documents enable row level security;
 

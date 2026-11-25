@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { priceLabel } from '../config';
+import { coverPriceLabel, priceLabel } from '../config';
 import type { Unlock } from '../payments';
 import { Modal } from './Modal';
 
@@ -13,9 +13,13 @@ interface Props {
   onPay: () => Promise<void>;
   onRestore: (orderId: string) => Promise<void>;
   onDownload: () => void;
+  /** What is being unlocked. */
+  product?: 'resume' | 'cover';
 }
 
-export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, onDownload }: Props) {
+export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, onDownload, product = 'resume' }: Props) {
+  const price = product === 'cover' ? coverPriceLabel : priceLabel;
+  const thing = product === 'cover' ? 'cover letter' : 'resume';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -69,10 +73,10 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
       <div className="mb">
         <div className="amount">
           <span>wemakesucess PDF pass</span>
-          <b>{priceLabel}</b>
+          <b>{price}</b>
         </div>
         <ul className="perks">
-          <li>Unlimited PDF downloads of this resume, forever</li>
+          <li>Unlimited PDF downloads of this {thing}, forever</li>
           <li>Edit and switch templates, then re-download free</li>
           <li>Text-based PDF that ATS can read</li>
           <li>Pay by UPI, card, netbanking or wallet</li>
@@ -94,7 +98,7 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
           </p>
         )}
         <button className="btn primary wide" type="button" disabled={busy} onClick={() => run(onPay)}>
-          {busy ? 'Please wait…' : `Pay ${priceLabel}`}
+          {busy ? 'Please wait…' : `Pay ${price}`}
         </button>
         <p className="fine">
           By paying you agree to the <a href="/legal/terms.html" target="_blank">Terms</a> and{' '}
@@ -119,7 +123,7 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
             </form>
           ) : (
             <button className="btn ghost small" type="button" onClick={() => setRestoring(true)}>
-              Already paid for this resume? Restore your purchase
+              Already paid for this {thing}? Restore your purchase
             </button>
           ))}
       </div>
