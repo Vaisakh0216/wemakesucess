@@ -23,5 +23,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/|fonts/|legal/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

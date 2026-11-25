@@ -4,6 +4,7 @@ import App from './App';
 import { fontFaces } from './shared/fonts';
 import { RESUME_CSS } from './shared/resumeCss';
 import './app.css';
+import './site.css';
 
 // Resume sheet styles live in TS so the server-side PDF renderer can import the same string.
 const style = document.createElement('style');

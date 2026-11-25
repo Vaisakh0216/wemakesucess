@@ -54,12 +54,14 @@ export interface Resume {
 
 export type ListKey = 'experience' | 'education' | 'projects';
 
-export const TEMPLATES: { id: TemplateId; name: string; desc: string; font: FontId }[] = [
-  { id: 'modern', name: 'Modern', desc: 'Colour headings, clean sans', font: 'sans' },
-  { id: 'classic', name: 'Classic', desc: 'Centred, traditional rules', font: 'serif' },
-  { id: 'compact', name: 'Compact', desc: 'Dense, fits one page', font: 'plex' },
-  { id: 'executive', name: 'Executive', desc: 'Senior roles, double rule', font: 'serif' },
+export const TEMPLATES: { id: TemplateId; name: string; desc: string; font: FontId; tags: string[] }[] = [
+  { id: 'modern', name: 'Modern', desc: 'Colour headings, clean sans', font: 'sans', tags: ['Modern', 'Simple', 'Graduate'] },
+  { id: 'classic', name: 'Classic', desc: 'Centred, traditional rules', font: 'serif', tags: ['Traditional', 'Professional'] },
+  { id: 'compact', name: 'Compact', desc: 'Dense, fits one page', font: 'plex', tags: ['One-page', 'Student', 'Simple'] },
+  { id: 'executive', name: 'Executive', desc: 'Senior roles, double rule', font: 'serif', tags: ['Professional', 'Senior'] },
 ];
+
+export const TEMPLATE_FILTERS = ['All', 'Modern', 'Simple', 'Professional', 'Traditional', 'One-page', 'Student', 'Graduate', 'Senior'];
 
 export const ACCENTS = ['#1f3a68', '#0f6b6b', '#7a2338', '#2f2f2f', '#3b3f99', '#8a4b0f'];
 

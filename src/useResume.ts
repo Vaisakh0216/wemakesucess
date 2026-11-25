@@ -1,53 +1,98 @@
-import { useCallback, useEffect, useState } from 'react';
-import { cloneResume, normalizeResume, SAMPLE, type Resume } from './shared/resume';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getDoc, saveDoc } from './docs';
+import { cloneResume, SAMPLE, type Resume } from './shared/resume';
 
-const KEY = 'wms.draft.v1';
-const LEGACY_KEY = 'shortlist.draft'; // prototype
+const HISTORY_LIMIT = 100;
 
-function load(): Resume {
-  try {
-    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
-    if (raw) return normalizeResume(JSON.parse(raw));
-  } catch {
-    /* storage blocked or corrupt: start from the sample */
-  }
-  return cloneResume(SAMPLE);
-}
+/**
+ * Editing state for one document: autosaves to My Documents and keeps an
+ * undo/redo history (typing in one field within a second counts as one step).
+ */
+export function useResume(docId: string) {
+  const [resume, setResumeState] = useState<Resume>(() => getDoc(docId)?.data ?? cloneResume(SAMPLE));
+  const current = useRef(resume);
+  const setResume = (r: Resume) => {
+    current.current = r;
+    setResumeState(r);
+  };
+  const past = useRef<Resume[]>([]);
+  const future = useRef<Resume[]>([]);
+  const lastKey = useRef<{ key: string; at: number } | null>(null);
+  const [, bump] = useState(0);
 
-/** Resume draft state, autosaved to this browser. Accounts and cloud save come in a later PR. */
-export function useResume() {
-  const [resume, setResume] = useState<Resume>(load);
-
-  // Saving is cheap (a few KB of JSON), so save on every change; no debounce to lose on reload.
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(resume));
-    } catch {
-      /* storage blocked: the draft lives only in memory */
+    saveDoc(docId, { data: resume });
+  }, [docId, resume]);
+
+  // History lives in refs and is updated outside state updaters, so StrictMode's
+  // double-invoked updaters cannot record a step twice.
+  const commit = useCallback((next: (prev: Resume) => Resume, key?: string) => {
+    const prev = current.current;
+    const now = Date.now();
+    const coalesce = key && lastKey.current?.key === key && now - lastKey.current.at < 1000;
+    if (!coalesce) {
+      past.current.push(prev);
+      if (past.current.length > HISTORY_LIMIT) past.current.shift();
     }
-  }, [resume]);
+    lastKey.current = key ? { key, at: now } : null;
+    future.current = [];
+    setResume(next(prev));
+    bump((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Set a value by dotted path, e.g. "contact.name" or "experience.0.role". */
-  const setPath = useCallback((path: string, value: unknown) => {
-    setResume((prev) => {
-      const next = cloneResume(prev);
-      const keys = path.split('.');
-      let o: any = next;
-      for (const k of keys.slice(0, -1)) o = o[k];
-      o[keys[keys.length - 1]] = value;
-      return next;
-    });
+  const setPath = useCallback(
+    (path: string, value: unknown) =>
+      commit((prev) => {
+        const next = cloneResume(prev);
+        const keys = path.split('.');
+        let o: any = next;
+        for (const k of keys.slice(0, -1)) o = o[k];
+        o[keys[keys.length - 1]] = value;
+        return next;
+      }, path),
+    [commit],
+  );
+
+  const update = useCallback(
+    (fn: (draft: Resume) => void) =>
+      commit((prev) => {
+        const next = cloneResume(prev);
+        fn(next);
+        return next;
+      }),
+    [commit],
+  );
+
+  const replace = useCallback((r: Resume) => commit(() => cloneResume(r)), [commit]);
+
+  const undo = useCallback(() => {
+    const prev = past.current.pop();
+    if (!prev) return;
+    future.current.push(current.current);
+    setResume(prev);
+    lastKey.current = null;
+    bump((n) => n + 1);
   }, []);
 
-  const update = useCallback((fn: (draft: Resume) => void) => {
-    setResume((prev) => {
-      const next = cloneResume(prev);
-      fn(next);
-      return next;
-    });
+  const redo = useCallback(() => {
+    const next = future.current.pop();
+    if (!next) return;
+    past.current.push(current.current);
+    setResume(next);
+    lastKey.current = null;
+    bump((n) => n + 1);
   }, []);
 
-  const reset = useCallback(() => setResume(cloneResume(SAMPLE)), []);
-
-  return { resume, setPath, update, reset };
+  return {
+    resume,
+    setPath,
+    update,
+    replace,
+    undo,
+    redo,
+    canUndo: past.current.length > 0,
+    canRedo: future.current.length > 0,
+  };
 }

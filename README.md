@@ -4,6 +4,11 @@ ATS-friendly resume builder for India. Build and preview for free; download a te
 
 ## What's here
 
+- **Landing page** (`/`): hero, template gallery with filters, 3 steps, ATS explainer, pricing, FAQ.
+- **Templates** (`/templates`): live previews of every template; picking one opens the editor.
+- **My Documents** (`/app`): any number of resumes saved in the browser, with tags, sorting, rename, duplicate and delete. Each document has its own ₹299 unlock.
+- **Editor** (`/edit/:id`): undo and redo (buttons, Ctrl+Z, Ctrl+Shift+Z), editable document name.
+
 - **Guided editor** (Design, Contact, Summary, Experience, Education, Skills, Projects) with a live A4 preview.
 - **Four single-column ATS templates**: Modern, Classic, Compact, Executive, with six accent colours and three fonts.
 - **ATS check**: a 10-point readiness score with fixes.
