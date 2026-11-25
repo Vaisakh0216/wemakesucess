@@ -67,7 +67,11 @@ export function EditorPage({ docId }: { docId: string }) {
 
   useEffect(() => {
     fetchConfig().then(setCfg);
-  }, []);
+    if (new URLSearchParams(location.search).has('imported')) {
+      history.replaceState(null, '', location.pathname);
+      say('Imported. Check each section: automatic reading is never perfect.', 7000);
+    }
+  }, [say]);
 
   // Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z (or Ctrl+Y) for undo and redo, outside text fields
   // (inside a field the browser's own text undo applies).

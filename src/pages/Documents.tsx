@@ -3,6 +3,7 @@ import { AccountButton, SaveToAccountBanner } from '../components/Account';
 import { useAuth } from '../cloud';
 import { Modal } from '../components/Modal';
 import { ResumeThumb } from '../components/ResumeThumb';
+import { ImportButton } from '../components/ImportButton';
 import { TemplateGallery } from '../components/TemplateGallery';
 import { blankResume, createDoc, deleteDoc, duplicateDoc, listDocs, saveDoc, subscribeDocs, type Doc } from '../docs';
 import { loadUnlock } from '../payments';
@@ -105,20 +106,19 @@ export function Documents() {
           <div className="mh">
             <div style={{ flex: 1 }}>
               <h3 id="newdoc">New resume</h3>
-              <p>Pick a template to start with example content, or start blank.</p>
+              <p>Pick a template to start with example content, start blank, or import the resume you already have.</p>
             </div>
             <button className="icon-btn" type="button" aria-label="Close" onClick={() => setAdding(false)}>
               ✕
             </button>
           </div>
           <div className="mb wide-modal">
-            <button
-              className="btn"
-              type="button"
-              onClick={() => navigate(`/edit/${createDoc({ data: blankResume() }).id}`)}
-            >
-              Start with a blank resume
-            </button>
+            <div className="start-row">
+              <button className="btn" type="button" onClick={() => navigate(`/edit/${createDoc({ data: blankResume() }).id}`)}>
+                Start with a blank resume
+              </button>
+              <ImportButton />
+            </div>
             <TemplateGallery />
           </div>
         </Modal>

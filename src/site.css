@@ -159,3 +159,5 @@ a{color:inherit}
 .btn.google{background:#fff;color:#1f1f1f;border-color:#d0d4dc}
 .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
 .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.start-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.import{display:flex;flex-direction:column;gap:6px}
