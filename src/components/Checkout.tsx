@@ -96,6 +96,10 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
         <button className="btn primary wide" type="button" disabled={busy} onClick={() => run(onPay)}>
           {busy ? 'Please wait…' : `Pay ${priceLabel}`}
         </button>
+        <p className="fine">
+          By paying you agree to the <a href="/legal/terms.html" target="_blank">Terms</a> and{' '}
+          <a href="/legal/refunds.html" target="_blank">Refund policy</a>.
+        </p>
         {live &&
           (restoring ? (
             <form
