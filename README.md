@@ -16,7 +16,8 @@ ATS-friendly resume builder for India. Build and preview for free; download a te
 - **Autosave** of the draft in the browser.
 - **₹299 checkout** with Razorpay (UPI, cards, netbanking, wallets). One payment unlocks unlimited downloads of one resume.
 - **Server-rendered PDF** with headless Chrome: real, selectable text with embedded TrueType fonts, identical to the preview.
-- **Demo mode**: with no Razorpay keys configured, checkout simulates a payment and downloads through the browser's Save as PDF.
+- **Pay by UPI QR** (the default until Razorpay keys are added): checkout shows a QR code for `UPI_ID` with the amount filled in, plus a copyable UPI ID. See below.
+- **Demo mode**: with no Razorpay keys and `UPI_ID=off`, checkout simulates a payment and downloads through the browser's Save as PDF.
 
 ## Stack
 
@@ -46,6 +47,16 @@ The browser never decides that someone has paid.
 Razorpay's order record is the purchase record, so there is no database to run yet.
 
 `src/shared/` holds the framework-free core (data model, template renderer, ATS check, CSS). The browser preview and the server-side PDF renderer both use it, so the PDF always matches the preview.
+
+## Pay by UPI QR (until Razorpay is set up)
+
+While the Razorpay keys are not set, checkout takes payment to a personal UPI ID: `UPI_ID` (defaults to the owner's ID in `server/env.ts`; set `UPI_ID=off` to turn it off) and `UPI_NAME` (the payee name, default "wemakesucess").
+
+1. The checkout shows a `upi://pay` QR code with the exact amount and a note like `WMS3F2B8C1E resume`, the document's short reference. On a phone there is also an "Open my UPI app" button. The QR is drawn in the browser, so it costs nothing.
+2. After paying, the customer types the 12-digit UPI reference (UTR) and the PDF unlocks at once.
+3. `POST /api/upi` writes each claim to the server log as one JSON line with `"event":"upi_claim"`, the UTR, amount, reference, name and email. Search Vercel → Logs for `upi_claim` and match each UTR with the bank statement. With `UNLOCK_SECRET` set it also returns a signed unlock token, so server-made PDFs work.
+
+A payment to a personal UPI ID cannot be checked automatically, so this trusts the reference the customer types. Someone could type a made-up 12-digit number and get the PDF. Adding the Razorpay keys switches checkout back to verified payments, and UPI unlocks already given keep working.
 
 ## ATS rules every template must keep
 

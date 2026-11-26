@@ -16,6 +16,21 @@ export interface Env {
   AI_MODEL?: string;
   /** AI generations per signed-in user per day (default 20). */
   AI_DAILY_LIMIT?: string;
+  /** UPI ID that takes payment by QR code while Razorpay is not set up. "off" turns it off. */
+  UPI_ID?: string;
+  /** Payee name shown in the customer's UPI app. */
+  UPI_NAME?: string;
+}
+
+/** Personal UPI used until Razorpay keys are added. */
+export const DEFAULT_UPI_ID = '8921630688@pthdfc';
+
+/** Pay-by-UPI-QR settings, or null when Razorpay is set up (it takes over) or UPI is turned off. */
+export function upiSettings(env: Env): { id: string; name: string } | null {
+  if (paymentsConfigured(env)) return null;
+  const id = (env.UPI_ID ?? DEFAULT_UPI_ID).trim();
+  if (!id || id === 'off' || !/^[\w.-]{2,256}@[a-zA-Z]{2,64}$/.test(id)) return null;
+  return { id, name: (env.UPI_NAME || 'wemakesucess').slice(0, 50) };
 }
 
 /** ₹299 in paise. The server is the only source of truth for the price. */
