@@ -213,4 +213,28 @@ describe('pay by UPI QR (until Razorpay is set up)', () => {
     const r = await (await handleUpiClaim(upiReq({ rid: RID, utr: '433512345678' }), {})).json();
     expect(r.token).toBeUndefined();
   });
+  it('needs a signed-in account when sign-in is on, and names it in the log', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const e = { SUPABASE_URL: 'https://sb.example', SUPABASE_ANON_KEY: 'anon', UNLOCK_SECRET: 'unlock-secret' };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) =>
+        String(url) === 'https://sb.example/auth/v1/user' && new Headers(init?.headers).get('authorization') === 'Bearer good'
+          ? Response.json({ id: 'user-1', email: 'asha@example.com' })
+          : new Response('{}', { status: 401 }),
+      ),
+    );
+    const req = (token?: string) =>
+      new Request('https://x/api/upi', {
+        method: 'POST',
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+        body: JSON.stringify({ rid: RID, utr: '433512345678' }),
+      });
+    expect((await handleUpiClaim(req(), e)).status).toBe(401);
+    expect((await handleUpiClaim(req('forged'), e)).status).toBe(401);
+    const ok = await handleUpiClaim(req('good'), e);
+    expect(ok.status).toBe(200);
+    expect(String(log.mock.calls.at(-1)?.[0])).toContain('"account":"asha@example.com"');
+    log.mockRestore();
+  });
 });

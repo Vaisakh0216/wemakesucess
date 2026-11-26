@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccountButton } from '../components/Account';
+import { SignInGate } from '../components/SignInGate';
+import { accessToken, useAuth } from '../cloud';
 import { AtsPanel, ScoreRing } from '../components/AtsPanel';
 import { Checkout } from '../components/Checkout';
 import { Editor, type StepId } from '../components/Editor';
@@ -21,6 +23,8 @@ export function EditorPage({ docId }: { docId: string }) {
   const [step, setStep] = useState<StepId>('contact');
   const [atsOpen, setAtsOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const auth = useAuth();
   const rid = docId;
   const [unlock, setPaid] = useState<Unlock | null>(() => loadUnlock(rid));
   const [cfg, setCfg] = useState<ServerConfig | null>(null);
@@ -114,7 +118,25 @@ export function EditorPage({ docId }: { docId: string }) {
     if (u) setPaid(u);
   };
 
-  const onDownload = () => (paid ? download() : setCheckoutOpen(true));
+  // With sign-in switched on, a PDF needs an account: the purchase is saved there.
+  const needsSignIn = auth.status === 'out';
+  const onDownload = () => {
+    if (auth.status === 'loading') return say('Checking your account…');
+    if (needsSignIn) return setGateOpen(true);
+    if (paid) download();
+    else setCheckoutOpen(true);
+  };
+
+  // Back from signing in to buy: open the checkout (or download, if this document is already paid).
+  const [wantsBuy, setWantsBuy] = useState(() => new URLSearchParams(location.search).get('buy') === '1');
+  useEffect(() => {
+    if (!wantsBuy || !cfg || auth.status === 'loading') return;
+    setWantsBuy(false);
+    history.replaceState(null, '', location.pathname);
+    if (auth.status === 'in' || auth.status === 'off') {
+      setCheckoutOpen(true);
+    }
+  }, [wantsBuy, cfg, auth.status, paid]);
 
   const copyText = async () => {
     const t = plainText(resume);
@@ -203,6 +225,7 @@ export function EditorPage({ docId }: { docId: string }) {
         </section>
       </main>
 
+      {gateOpen && <SignInGate thing="resume" onClose={() => setGateOpen(false)} />}
       {checkoutOpen && cfg && (
         <Checkout
           live={cfg.payments}
@@ -213,7 +236,7 @@ export function EditorPage({ docId }: { docId: string }) {
           onRestore={async (orderId) => setPaid(await restorePurchase(rid, orderId))}
           upi={cfg.payments ? null : cfg.upi}
           docId={rid}
-          onUpiClaim={async (utr) => setPaid(await claimUpi(rid, utr, 'resume', { name: resume.contact.name, email: resume.contact.email }))}
+          onUpiClaim={async (utr) => setPaid(await claimUpi(rid, utr, 'resume', { name: resume.contact.name, email: resume.contact.email }, await accessToken()))}
           onDownload={() => download()}
         />
       )}

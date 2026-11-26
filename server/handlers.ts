@@ -1,4 +1,5 @@
 import { aiConfigured } from './ai.js';
+import { authConfigured, bearer, supabaseUser } from './auth.js';
 /**
  * Platform-neutral API handlers (Web Request in, Response out).
  * Thin adapters in api/ (Vercel) and functions/api/ (Cloudflare Pages) call these.
@@ -137,6 +138,9 @@ export async function handleUpiClaim(request: Request, env: Env): Promise<Respon
   if (!RID.test(rid)) return fail(400, 'bad_resume_id');
   if (!UTR.test(utr)) return fail(400, 'bad_utr');
   const p = product(b?.product);
+  // With sign-in switched on, only a signed-in user can unlock, and the claim names their account.
+  const user = authConfigured(env) ? await supabaseUser(env, bearer(request)) : null;
+  if (authConfigured(env) && !user) return fail(401, 'sign_in_required');
   const oid = `upi_${utr}`;
   console.log(
     JSON.stringify({
@@ -146,6 +150,8 @@ export async function handleUpiClaim(request: Request, env: Env): Promise<Respon
       product: p,
       ref: refFor(rid),
       rid,
+      user: user?.id ?? null,
+      account: user?.email ?? null,
       name: str(b?.name, 120),
       email: str(b?.email, 120),
       at: new Date().toISOString(),

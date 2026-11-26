@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { useSyncExternalStore } from 'react';
 import { clearLocalDocs, deletedIds, forgetDeleted, listDocs, mergeDocs, subscribeDocs, type Doc } from './docs';
 import { clearUnlocks, fetchConfig, loadUnlock, saveUnlock, UNLOCK_EVENT, type Unlock } from './payments';
+import { navigate } from './router';
 
 /**
  * Accounts (Supabase Auth: email link and Google) and sync of "My Documents".
@@ -54,6 +55,34 @@ function getClient(): Promise<SupabaseClient | null> {
 
 const redirectTo = () => `${location.origin}/app`;
 
+/*
+ * Where to go back to after signing in (e.g. the editor, to finish a download).
+ * Kept in this browser rather than in the sign-in link, so Supabase's list of
+ * allowed redirect addresses only needs /app.
+ */
+const NEXT_KEY = 'wms.afterSignIn';
+
+export function setAfterSignIn(path: string) {
+  try {
+    localStorage.setItem(NEXT_KEY, JSON.stringify({ path, at: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Go back to the saved page, if it was saved in the last hour and we are on /app or /login. */
+function resumeAfterSignIn() {
+  try {
+    const v = JSON.parse(localStorage.getItem(NEXT_KEY) || 'null') as { path?: string; at?: number } | null;
+    if (!v?.path || !v.path.startsWith('/') || v.path.startsWith('//')) return;
+    if (!['/app', '/login'].includes(location.pathname)) return;
+    localStorage.removeItem(NEXT_KEY);
+    if (Date.now() - (v.at ?? 0) < 3_600_000) navigate(v.path, true);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Start once at page load: restore the session and keep documents in sync. */
 export async function initAuth() {
   const sb = await getClient().catch(() => null);
@@ -72,7 +101,11 @@ export async function initAuth() {
         : null,
     });
     // Supabase calls back inside its own lock; sync after it returns.
-    if (u && u.id !== prev) setTimeout(() => void syncNow(), 0);
+    if (u && u.id !== prev)
+      setTimeout(() => {
+        // Pull the account's documents first, so the page we return to exists here.
+        void syncNow().finally(resumeAfterSignIn);
+      }, 0);
   });
   const { data } = await sb.auth.getSession();
   if (!data.session) set({ status: 'out' });
@@ -142,10 +175,11 @@ interface Row {
 const pushed = new Map<string, string>();
 const stamp = (d: Doc) => d.updatedAt + (paidUnlock(d.id) ? '+paid' : '');
 
-/** Only real (server-signed) purchases go to the account; demo unlocks stay local. */
+/** Real purchases (server-signed, or paid by UPI) go to the account; demo unlocks stay local. */
+const isReal = (u: Unlock | null | undefined): u is Unlock => !!u && !u.demo && !!(u.token || u.upi);
 function paidUnlock(id: string): Unlock | null {
   const u = loadUnlock(id);
-  return u?.token && !u.demo ? u : null;
+  return isReal(u) ? u : null;
 }
 
 const toRow = (d: Doc, userId: string) => ({
@@ -182,9 +216,9 @@ export function syncNow(): Promise<boolean> {
         live.map((r) => ({ id: r.id, kind: r.kind, title: r.title, tags: r.tags, data: r.data, createdAt: r.created_at, updatedAt: r.updated_at })),
         rows.filter((r) => r.deleted_at).map((r) => r.id),
       );
-      for (const r of live) if (r.unlock?.token && !paidUnlock(r.id)) saveUnlock({ ...r.unlock, rid: r.id });
+      for (const r of live) if (isReal(r.unlock) && !paidUnlock(r.id)) saveUnlock({ ...r.unlock, rid: r.id });
       pushed.clear();
-      for (const r of live) pushed.set(r.id, r.updated_at + (r.unlock?.token ? '+paid' : ''));
+      for (const r of live) pushed.set(r.id, r.updated_at + (isReal(r.unlock) ? '+paid' : ''));
       set({ sync: 'idle' });
     } catch {
       set({ sync: 'error' });

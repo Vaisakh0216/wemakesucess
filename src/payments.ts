@@ -99,10 +99,10 @@ async function loadConfig(): Promise<ServerConfig> {
   return { payments: false, testMode: true, amount: 29900, serverPdf: false, auth: null };
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
+async function post<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   const res = await fetch(path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
@@ -182,14 +182,19 @@ export async function claimUpi(
   utr: string,
   product: 'resume' | 'cover',
   who: { name?: string; email?: string } = {},
+  accessToken?: string | null,
 ): Promise<Unlock> {
-  const { orderId, token } = await post<{ orderId: string; token?: string }>('/api/upi', { rid, utr, product, ...who }).catch((e: Error) => {
-    throw new Error(
-      e.message === 'bad_utr'
-        ? 'That does not look like a UPI reference. It is 12 digits.'
-        : 'Could not unlock right now. Please try again in a minute; your payment is safe.',
-    );
-  });
+  const { orderId, token } = await post<{ orderId: string; token?: string }>('/api/upi', { rid, utr, product, ...who }, accessToken).catch(
+    (e: Error) => {
+      throw new Error(
+        e.message === 'bad_utr'
+          ? 'That does not look like a UPI reference. It is 12 digits.'
+          : e.message === 'sign_in_required'
+            ? 'Please sign in again, then enter your UPI reference. Your payment is safe.'
+            : 'Could not unlock right now. Please try again in a minute; your payment is safe.',
+      );
+    },
+  );
   const u: Unlock = { rid, orderId, upi: true, ...(token ? { token } : {}) };
   saveUnlock(u);
   return u;
