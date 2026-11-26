@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccountButton } from '../components/Account';
+import { SignInGate } from '../components/SignInGate';
+import { accessToken, useAuth } from '../cloud';
 import { AiAssist } from '../components/AiAssist';
 import { Checkout } from '../components/Checkout';
 import { Field } from '../components/Field';
@@ -20,6 +22,8 @@ export function CoverEditorPage({ docId }: { docId: string }) {
   const [title, setTitle] = useState(() => getCover(docId)?.title ?? 'Cover Letter');
   const [jd, setJd] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const auth = useAuth();
   const [unlock, setPaid] = useState<Unlock | null>(() => loadUnlock(docId));
   const [cfg, setCfg] = useState<ServerConfig | null>(null);
   const paid = isPaid(unlock, cfg);
@@ -76,6 +80,26 @@ export function CoverEditorPage({ docId }: { docId: string }) {
     const u = await payWithRazorpay(docId, { name: c.contact.name, email: c.contact.email, contact: c.contact.phone.replace(/[^\d+]/g, '') }, 'cover');
     if (u) setPaid(u);
   };
+
+  // With sign-in switched on, a PDF needs an account: the purchase is saved there.
+  const needsSignIn = auth.status === 'out';
+  const onDownload = () => {
+    if (auth.status === 'loading') return say('Checking your account…');
+    if (needsSignIn) return setGateOpen(true);
+    if (paid) download();
+    else setCheckoutOpen(true);
+  };
+
+  // Back from signing in to buy: open the checkout (or download, if this document is already paid).
+  const [wantsBuy, setWantsBuy] = useState(() => new URLSearchParams(location.search).get('buy') === '1');
+  useEffect(() => {
+    if (!wantsBuy || !cfg || auth.status === 'loading') return;
+    setWantsBuy(false);
+    history.replaceState(null, '', location.pathname);
+    if (auth.status === 'in' || auth.status === 'off') {
+      setCheckoutOpen(true);
+    }
+  }, [wantsBuy, cfg, auth.status, paid]);
 
   // What the AI draft works from: the linked resume, the job and the letter so far.
   const aiContext = () => {
@@ -145,7 +169,7 @@ export function CoverEditorPage({ docId }: { docId: string }) {
         >
           Copy plain text
         </button>
-        <button className="btn primary" type="button" onClick={() => (paid ? download() : setCheckoutOpen(true))}>
+        <button className="btn primary" type="button" onClick={onDownload}>
           Download PDF{!paid && <span className="price">· {coverPriceLabel}</span>}
         </button>
         <AccountButton />
@@ -255,7 +279,7 @@ export function CoverEditorPage({ docId }: { docId: string }) {
                 ))}
               </div>
             </div>
-            <button className="btn primary" type="button" style={{ alignSelf: 'flex-start' }} onClick={() => (paid ? download() : setCheckoutOpen(true))}>
+            <button className="btn primary" type="button" style={{ alignSelf: 'flex-start' }} onClick={onDownload}>
               Download PDF{!paid && ` · ${coverPriceLabel}`}
             </button>
           </div>
@@ -268,6 +292,7 @@ export function CoverEditorPage({ docId }: { docId: string }) {
         </section>
       </main>
 
+      {gateOpen && <SignInGate thing="cover letter" onClose={() => setGateOpen(false)} />}
       {checkoutOpen && cfg && (
         <Checkout
           product="cover"
@@ -279,7 +304,7 @@ export function CoverEditorPage({ docId }: { docId: string }) {
           onRestore={async (orderId) => setPaid(await restorePurchase(docId, orderId))}
           upi={cfg.payments ? null : cfg.upi}
           docId={docId}
-          onUpiClaim={async (utr) => setPaid(await claimUpi(docId, utr, 'cover', { name: c.contact.name, email: c.contact.email }))}
+          onUpiClaim={async (utr) => setPaid(await claimUpi(docId, utr, 'cover', { name: c.contact.name, email: c.contact.email }, await accessToken()))}
           onDownload={() => download()}
         />
       )}
