@@ -7,7 +7,7 @@ import { DesignToolbar } from '../components/DesignToolbar';
 import { Preview, type Issue } from '../components/Preview';
 import { priceLabel } from '../config';
 import { getDoc, saveDoc } from '../docs';
-import { downloadPdf, fetchConfig, loadUnlock, payWithRazorpay, restorePurchase, saveUnlock, type ServerConfig, type Unlock } from '../payments';
+import { claimUpi, downloadPdf, fetchConfig, isPaid, loadUnlock, payWithRazorpay, restorePurchase, saveUnlock, type ServerConfig, type Unlock } from '../payments';
 import { Link } from '../router';
 import { atsChecks, atsScore } from '../shared/ats';
 import { plainText } from '../shared/render';
@@ -24,8 +24,7 @@ export function EditorPage({ docId }: { docId: string }) {
   const rid = docId;
   const [unlock, setPaid] = useState<Unlock | null>(() => loadUnlock(rid));
   const [cfg, setCfg] = useState<ServerConfig | null>(null);
-  // A demo-mode unlock stops counting once real payments are switched on.
-  const paid = unlock && (!unlock.demo || cfg?.payments === false) ? unlock : null;
+  const paid = isPaid(unlock, cfg);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -212,6 +211,9 @@ export function EditorPage({ docId }: { docId: string }) {
           onClose={() => setCheckoutOpen(false)}
           onPay={pay}
           onRestore={async (orderId) => setPaid(await restorePurchase(rid, orderId))}
+          upi={cfg.payments ? null : cfg.upi}
+          docId={rid}
+          onUpiClaim={async (utr) => setPaid(await claimUpi(rid, utr, 'resume', { name: resume.contact.name, email: resume.contact.email }))}
           onDownload={() => download()}
         />
       )}

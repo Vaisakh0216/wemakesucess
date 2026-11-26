@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hmacHex, signUnlock, verifyRazorpaySignature, verifyUnlock } from '../server/crypto';
-import { handleConfig, handleOrder, handlePdf, handleRestore, handleVerify } from '../server/handlers';
+import { handleConfig, handleOrder, handlePdf, handleRestore, handleUpiClaim, handleVerify } from '../server/handlers';
+import { refFor, upiLink } from '../src/shared/upi';
 
 const order = (c: { request: Request; env: any }) => handleOrder(c.request, c.env);
 const verify = (c: { request: Request; env: any }) => handleVerify(c.request, c.env);
@@ -178,5 +179,38 @@ describe('cover letters (₹99)', () => {
     expect(await ok.text()).toContain('<p>Para two.</p>');
     expect((await handlePdf(pdfReq({ rid: RID, token: coverToken, resume: { contact: { name: 'X' } } }), env, render)).status).toBe(402);
     expect((await handlePdf(pdfReq({ rid: RID, token: resumeToken, kind: 'cover', cover }), env, render)).status).toBe(402);
+  });
+});
+
+describe('pay by UPI QR (until Razorpay is set up)', () => {
+  const upiReq = (body: unknown) => new Request('https://x/api/upi', { method: 'POST', body: JSON.stringify(body) });
+  it('offers UPI only while Razorpay is not configured, and can be turned off', async () => {
+    expect((await (await config({ env: {} })).json()).upi).toEqual({ id: '8921630688@pthdfc', name: 'wemakesucess' });
+    expect((await (await config({ env })).json()).upi).toBeNull();
+    expect((await (await config({ env: { UPI_ID: 'off' } })).json()).upi).toBeNull();
+  });
+  it('builds a upi://pay link with the amount and a reference to the document', () => {
+    const link = upiLink({ id: '8921630688@pthdfc', name: 'wemakesucess', rupees: 299, note: `${refFor(RID)} resume` });
+    expect(link).toBe('upi://pay?pa=8921630688%40pthdfc&pn=wemakesucess&am=299.00&cu=INR&tn=WMS3F2B8C1E%20resume');
+  });
+  it('unlocks with a 12-digit UPI reference, logs it, and signs a token of the right product', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const e = { UNLOCK_SECRET: 'unlock-secret' };
+    const res = await handleUpiClaim(upiReq({ rid: RID, utr: '4335 1234 5678', product: 'cover' }), e);
+    expect(res.status).toBe(200);
+    const { orderId, token } = await res.json();
+    expect(orderId).toBe('upi_433512345678');
+    expect(await verifyUnlock(token, 'unlock-secret')).toMatchObject({ rid: RID, oid: orderId, p: 'cover' });
+    expect(String(log.mock.calls[0][0])).toContain('"event":"upi_claim"');
+    expect(String(log.mock.calls[0][0])).toContain('"rupees":99');
+    log.mockRestore();
+  });
+  it('rejects bad references, and works without a signing secret (browser print)', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    expect((await handleUpiClaim(upiReq({ rid: RID, utr: '12345' }), {})).status).toBe(400);
+    expect((await handleUpiClaim(upiReq({ rid: 'x', utr: '433512345678' }), {})).status).toBe(400);
+    expect((await handleUpiClaim(upiReq({ rid: RID, utr: '433512345678' }), env)).status).toBe(503);
+    const r = await (await handleUpiClaim(upiReq({ rid: RID, utr: '433512345678' }), {})).json();
+    expect(r.token).toBeUndefined();
   });
 });

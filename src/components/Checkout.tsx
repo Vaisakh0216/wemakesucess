@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { coverPriceLabel, priceLabel } from '../config';
+import { COVER_PRICE_INR, coverPriceLabel, PRICE_INR, priceLabel } from '../config';
 import type { Unlock } from '../payments';
 import { Modal } from './Modal';
+import { UpiPay } from './UpiPay';
 
 interface Props {
   /** Real Razorpay checkout is configured on the server. */
@@ -15,9 +16,13 @@ interface Props {
   onDownload: () => void;
   /** What is being unlocked. */
   product?: 'resume' | 'cover';
+  /** Pay by UPI QR to this ID instead of Razorpay (while Razorpay is not set up). */
+  upi?: { id: string; name: string } | null;
+  docId?: string;
+  onUpiClaim?: (utr: string) => Promise<void>;
 }
 
-export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, onDownload, product = 'resume' }: Props) {
+export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, onDownload, product = 'resume', upi, docId = '', onUpiClaim }: Props) {
   const price = product === 'cover' ? coverPriceLabel : priceLabel;
   const thing = product === 'cover' ? 'cover letter' : 'resume';
   const [busy, setBusy] = useState(false);
@@ -43,10 +48,17 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
         <div className="mb">
           <div className="success">
             <div className="big">✓</div>
-            <h3 id="mt">{unlock.demo ? 'Demo payment complete' : 'Payment successful'}</h3>
-            <p>
-              Order <span className="mono">{unlock.orderId}</span>. Keep this id to restore your purchase.
-            </p>
+            <h3 id="mt">{unlock.demo ? 'Demo payment complete' : unlock.upi ? 'Thank you! PDF unlocked' : 'Payment successful'}</h3>
+            {unlock.upi ? (
+              <p>
+                UPI reference <span className="mono">{unlock.orderId.replace(/^upi_/, '')}</span>. We match every reference
+                with our bank statement.
+              </p>
+            ) : (
+              <p>
+                Order <span className="mono">{unlock.orderId}</span>. Keep this id to restore your purchase.
+              </p>
+            )}
           </div>
           <button className="btn primary wide" type="button" onClick={onDownload}>
             Download PDF
@@ -79,9 +91,9 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
           <li>Unlimited PDF downloads of this {thing}, forever</li>
           <li>Edit and switch templates, then re-download free</li>
           <li>Text-based PDF that ATS can read</li>
-          <li>Pay by UPI, card, netbanking or wallet</li>
+          <li>{upi && !live ? 'Pay by any UPI app' : 'Pay by UPI, card, netbanking or wallet'}</li>
         </ul>
-        {!live && (
+        {!live && !upi && (
           <div className="testband">
             <b>Demo mode.</b> Payments are not set up on this server yet, so nothing is charged.
           </div>
@@ -97,9 +109,20 @@ export function Checkout({ live, testKeys, unlock, onClose, onPay, onRestore, on
             {error}
           </p>
         )}
-        <button className="btn primary wide" type="button" disabled={busy} onClick={() => run(onPay)}>
-          {busy ? 'Please wait…' : `Pay ${price}`}
-        </button>
+        {upi && !live && onUpiClaim ? (
+          <UpiPay
+            upi={upi}
+            rupees={product === 'cover' ? COVER_PRICE_INR : PRICE_INR}
+            docId={docId}
+            thing={thing}
+            busy={busy}
+            onClaim={(utr) => run(() => onUpiClaim(utr))}
+          />
+        ) : (
+          <button className="btn primary wide" type="button" disabled={busy} onClick={() => run(onPay)}>
+            {busy ? 'Please wait…' : `Pay ${price}`}
+          </button>
+        )}
         <p className="fine">
           By paying you agree to the <a href="/legal/terms.html" target="_blank">Terms</a> and{' '}
           <a href="/legal/refunds.html" target="_blank">Refund policy</a>.

@@ -7,7 +7,7 @@ import { Preview } from '../components/Preview';
 import { Thumb } from '../components/Thumb';
 import { coverPriceLabel } from '../config';
 import { getCover, getResume, saveDoc } from '../docs';
-import { downloadPdf, fetchConfig, loadUnlock, payWithRazorpay, restorePurchase, saveUnlock, type ServerConfig, type Unlock } from '../payments';
+import { claimUpi, downloadPdf, fetchConfig, isPaid, loadUnlock, payWithRazorpay, restorePurchase, saveUnlock, type ServerConfig, type Unlock } from '../payments';
 import { Link } from '../router';
 import { coverPlainText, todayIN } from '../shared/cover';
 import { csv, lines } from '../shared/text';
@@ -22,7 +22,7 @@ export function CoverEditorPage({ docId }: { docId: string }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [unlock, setPaid] = useState<Unlock | null>(() => loadUnlock(docId));
   const [cfg, setCfg] = useState<ServerConfig | null>(null);
-  const paid = unlock && (!unlock.demo || cfg?.payments === false) ? unlock : null;
+  const paid = isPaid(unlock, cfg);
   const [toast, setToast] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const say = useCallback((msg: string, ms = 2500) => {
@@ -277,6 +277,9 @@ export function CoverEditorPage({ docId }: { docId: string }) {
           onClose={() => setCheckoutOpen(false)}
           onPay={pay}
           onRestore={async (orderId) => setPaid(await restorePurchase(docId, orderId))}
+          upi={cfg.payments ? null : cfg.upi}
+          docId={docId}
+          onUpiClaim={async (utr) => setPaid(await claimUpi(docId, utr, 'cover', { name: c.contact.name, email: c.contact.email }))}
           onDownload={() => download()}
         />
       )}

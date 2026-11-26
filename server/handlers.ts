@@ -8,8 +8,9 @@ import { coverDocument, resumeDocument } from '../src/shared/document.js';
 import { fileName } from '../src/shared/render.js';
 import { normalizeResume } from '../src/shared/resume.js';
 import { RESUME_CSS } from '../src/shared/resumeCss.js';
+import { refFor, UTR } from '../src/shared/upi.js';
 import { signUnlock, verifyRazorpaySignature, verifyUnlock } from './crypto.js';
-import { CURRENCY, fail, json, paymentsConfigured, PRICE_PAISE, PRICES, product, readJson, RID, type Env, type Product } from './env.js';
+import { CURRENCY, fail, json, paymentsConfigured, PRICE_PAISE, PRICES, product, readJson, RID, upiSettings, type Env, type Product } from './env.js';
 import { createOrder, fetchOrder, orderProduct, orderRid } from './razorpay.js';
 
 /** Turns a full HTML document into PDF bytes with headless Chrome. */
@@ -38,7 +39,9 @@ export function handleConfig(env: Env, serverPdf: boolean): Response {
     testMode: !!env.RAZORPAY_KEY_ID?.startsWith('rzp_test_'),
     amount: PRICE_PAISE,
     coverAmount: PRICES.cover,
-    serverPdf,
+    // Server PDFs need a signed unlock token, so they need UNLOCK_SECRET.
+    serverPdf: serverPdf && !!env.UNLOCK_SECRET,
+    upi: upiSettings(env),
     ai: aiConfigured(env),
     auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? { url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY } : null,
   });
@@ -119,11 +122,45 @@ export async function handleRestore(request: Request, env: Env): Promise<Respons
 }
 
 /**
+ * Pay-by-UPI-QR (used until Razorpay is set up). A payment to a personal UPI ID
+ * cannot be checked automatically, so this trusts the 12-digit UPI reference the
+ * customer types in. Each claim is written to the server log (Vercel → Logs,
+ * search "upi_claim") so the owner can match it against the bank statement.
+ * Returns a signed unlock token when UNLOCK_SECRET is set (needed for server PDFs).
+ */
+export async function handleUpiClaim(request: Request, env: Env): Promise<Response> {
+  const upi = upiSettings(env);
+  if (!upi) return fail(503, 'upi_not_available');
+  const b = await readJson(request, 2_000);
+  const rid = str(b?.rid);
+  const utr = str(b?.utr, 40).replace(/\s+/g, '');
+  if (!RID.test(rid)) return fail(400, 'bad_resume_id');
+  if (!UTR.test(utr)) return fail(400, 'bad_utr');
+  const p = product(b?.product);
+  const oid = `upi_${utr}`;
+  console.log(
+    JSON.stringify({
+      event: 'upi_claim',
+      utr,
+      rupees: PRICES[p] / 100,
+      product: p,
+      ref: refFor(rid),
+      rid,
+      name: str(b?.name, 120),
+      email: str(b?.email, 120),
+      at: new Date().toISOString(),
+    }),
+  );
+  const token = env.UNLOCK_SECRET ? await signUnlock(tokenFor(rid, oid, p), env.UNLOCK_SECRET) : undefined;
+  return json({ orderId: oid, token });
+}
+
+/**
  * Render the paid resume to a text-based PDF from the same HTML and CSS as the
  * live preview. Requires an unlock token for this resume id.
  */
 export async function handlePdf(request: Request, env: Env, render: PdfRenderer | null): Promise<Response> {
-  if (!paymentsConfigured(env)) return fail(503, 'payments_not_configured');
+  if (!env.UNLOCK_SECRET) return fail(503, 'payments_not_configured');
   if (!render) return fail(501, 'server_pdf_unavailable');
   // Room for a resume photo (up to ~200 KB as base64).
   const b = await readJson(request, 400_000);

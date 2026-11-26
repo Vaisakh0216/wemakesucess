@@ -10,4 +10,6 @@ export const env = (): Env => ({
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   AI_MODEL: process.env.AI_MODEL,
   AI_DAILY_LIMIT: process.env.AI_DAILY_LIMIT,
+  UPI_ID: process.env.UPI_ID,
+  UPI_NAME: process.env.UPI_NAME,
 });

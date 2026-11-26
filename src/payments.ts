@@ -14,6 +14,8 @@ export interface ServerConfig {
   ai?: boolean;
   /** Supabase settings when sign-in is switched on. */
   auth?: { url: string; anonKey: string } | null;
+  /** Pay by UPI QR code to this UPI ID (used until Razorpay is set up). */
+  upi?: { id: string; name: string } | null;
 }
 
 /** Saved proof of purchase for one resume. */
@@ -23,7 +25,13 @@ export interface Unlock {
   /** Signed by the server. Absent for demo-mode unlocks. */
   token?: string;
   demo?: boolean;
+  /** Paid by UPI QR; orderId is "upi_" + the 12-digit UPI reference. */
+  upi?: boolean;
 }
+
+/** The unlock counts as paid on this server. Demo unlocks stop counting once any real payment method is on. */
+export const isPaid = (u: Unlock | null, cfg: ServerConfig | null): Unlock | null =>
+  u && (!u.demo || (cfg?.payments === false && !cfg.upi)) ? u : null;
 
 const UNLOCKS_KEY = 'wms.unlocks.v1';
 const LEGACY_UNLOCK_KEY = 'wms.unlock.v1';
@@ -165,6 +173,28 @@ export async function payWithRazorpay(
   return u;
 }
 
+/**
+ * Record a UPI QR payment by its 12-digit UPI reference and unlock the document.
+ * The reference cannot be checked automatically; the server logs it for the owner to match.
+ */
+export async function claimUpi(
+  rid: string,
+  utr: string,
+  product: 'resume' | 'cover',
+  who: { name?: string; email?: string } = {},
+): Promise<Unlock> {
+  const { orderId, token } = await post<{ orderId: string; token?: string }>('/api/upi', { rid, utr, product, ...who }).catch((e: Error) => {
+    throw new Error(
+      e.message === 'bad_utr'
+        ? 'That does not look like a UPI reference. It is 12 digits.'
+        : 'Could not unlock right now. Please try again in a minute; your payment is safe.',
+    );
+  });
+  const u: Unlock = { rid, orderId, upi: true, ...(token ? { token } : {}) };
+  saveUnlock(u);
+  return u;
+}
+
 /** Recover an unlock from a paid Razorpay order id (shown on the receipt). */
 export async function restorePurchase(rid: string, orderId: string): Promise<Unlock> {
   const { token } = await post<{ token: string }>('/api/restore', { rid, orderId });
@@ -182,7 +212,7 @@ export type Printable = { kind: 'resume'; resume: Resume } | { kind: 'cover'; co
 
 export async function downloadPdf(doc: Resume | Printable, unlock: Unlock, cfg: ServerConfig): Promise<'file' | 'print'> {
   const d: Printable = 'kind' in doc ? doc : { kind: 'resume', resume: doc };
-  if (cfg.payments && !unlock.token) throw new Error('Please complete the payment to download.');
+  if (cfg.payments && !unlock.token && !unlock.upi) throw new Error('Please complete the payment to download.');
   const name = d.kind === 'cover' ? coverFileName(d.cover) : fileName(d.resume);
   if (unlock.token && cfg.serverPdf) {
     const res = await fetch('/api/pdf', {
